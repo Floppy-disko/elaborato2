@@ -55,6 +55,7 @@ dkms.conf
 
 # CMake
 cmake-build-*/
+Makefile
 
 # CLion
 .idea/
