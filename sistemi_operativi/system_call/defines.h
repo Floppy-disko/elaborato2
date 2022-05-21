@@ -15,6 +15,7 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define KEY_MSGQ 'A'
 #define KEY_SHDMEM 'B'

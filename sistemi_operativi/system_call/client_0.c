@@ -1,4 +1,4 @@
-Test/// @file client.c
+/// @file client.c
 /// @brief Contiene l'implementazione del client.
 
 #include "err_exit.h"
@@ -9,47 +9,52 @@ Test/// @file client.c
 
 #include <stdio.h>
 
-char newDir[] = "";
+char *newDir;
 sigset_t SigSet;
 
-struct str{
-  char Path[PATH_MAX];
+struct str {
+    char Path[150];
 };
-
-struct str memAllPath [100]; // array per meorizzare i path dei file da inviare
+struct str memAllPath[100]; // array per meorizzare i path dei file da inviare
 
 //funzione per leggere tutti i file dentro ad una directory
-int readDir(char dirpath[]){
-  
-  int n_file = 0; // contatore numero di file che inziano con sendme_
-  char dest[strlen(dirpath)];
+int readDir(const char dirpath[]) {
 
-  printf("%s", dirpath);
+    int n_file = 0; // contatore numero di file che inziano con sendme_
+    char dest[strlen(dirpath) + 1];
 
-  DIR *dirp = opendir("FolderTest"); //apro directory
-  if(dirp == NULL)
-    errExit("opendir failed");
-  
-  struct dirent *dentry;
-  while((dentry = readdir(dirp)) != NULL){ // scorro tutta la directory
-    strcpy(dest, dirpath);
-    
-    if(dentry->d_type == DT_REG){ // caso base: ho letto un file
-      if(strncmp("sendme_", dentry->d_name, 7) == 0){ // valuto se è quello che voglio
-        strcat(dest, dentry->d_name);  // ottengo path finale
-        strcpy(memAllPath[n_file].Path, dest);
-        n_file++; // incremento contatore
-      }
-      
-    }else if(dentry->d_type == DT_DIR){// se leggo una directory richiamo funzione
-      strcat(dest, dentry->d_name); 
-      n_file += readDir(dest); // aggiungo i file trovati nelle sotto cartelle
-      }
-  }
+    DIR *dirp = opendir(dirpath); //apro directory
+    if (dirp == NULL)
+        errExit("opendir failed");
 
-  closedir(dirp);
-  
-  return n_file;
+    errno = 0;
+    struct dirent *dentry;
+    while ((dentry = readdir(dirp)) != NULL) { // scorro tutta la directory
+        strcpy(dest, dirpath);
+
+        if (dentry->d_type == DT_REG) { // caso base: ho letto un file
+            if (strncmp("sendme_", dentry->d_name, 7) == 0) { // valuto se è quello che voglio
+                strcat(dest, dentry->d_name);  // ottengo path finale
+                strcpy(memAllPath[n_file].Path, dest);
+                n_file++; // incremento contatore
+            }
+
+        } else if (dentry->d_type == DT_DIR) {// se leggo una directory richiamo funzione
+            strcat(dest, dentry->d_name);
+            n_file += readDir(dentry->d_name); // aggiungo i file trovati nelle sotto cartelle
+        }
+
+        errno = 0;
+    }
+
+    char errMsg[100] = "Error while reading directory ";
+    strcat(errMsg, dirpath);
+    if (errno != 0)
+        errExit(errMsg);
+
+    closedir(dirp);
+
+    return n_file;
 }
 
 void sigHandler(int sig) {
@@ -61,13 +66,10 @@ void sigHandler(int sig) {
       if(sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
         errExit("mask fail");
       //cambio directory di lavoro
-      /*if(chdir(newDir) == -1)
-        errExit("chdir failed");*/
-      
+      if(chdir(newDir) == -1)
+        errExit("chdir failed");
       //output su terminale, si può usare printf? ricky dice di sì
-      char buffer[PATH_MAX];
-      getcwd(buffer, PATH_MAX);
-      printf("Ciao %s, ora inzio l'invio dei file contenuti in %s.\n", getenv("USER"), buffer);
+      printf("Ciao %s, ora inzio l'invio dei file contenuti in %s.\n", getenv("USER"), getenv("PWD"));
 
      //controllo cartelle
       int n_file = readDir(newDir);
@@ -87,7 +89,7 @@ int main(int argc, char * argv[]) {
           errExit("write on STDOUT failed");
         return 1;
     }
-  strcat(newDir, argv[1]);
+  newDir = argv[1];
 
   
   //lato client apertura di fifo, mssgqueue, shared memory...VA FATTA DAI CHILD?
