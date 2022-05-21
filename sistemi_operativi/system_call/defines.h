@@ -14,14 +14,16 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define KEY_MSGQ 'A'
 #define KEY_SHDMEM 'B'
 
+#define fifo1 "fifo1"
+#define fifo2 "fifo2"
 
 //array per in controllo della shared memory, dove è 0 è sopazio vuoto, dove 1 è occupato
 int SHDMEMcontroll[50];
 
 
 void sigHandler(int sig);
-int readDir(const char dirpath[]);

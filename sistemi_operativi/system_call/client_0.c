@@ -1,4 +1,4 @@
-/// @file client.c
+Test/// @file client.c
 /// @brief Contiene l'implementazione del client.
 
 #include "err_exit.h"
@@ -9,21 +9,24 @@
 
 #include <stdio.h>
 
-char *newDir;
+char newDir[] = "";
 sigset_t SigSet;
 
 struct str{
-  char Path[150];
+  char Path[PATH_MAX];
 };
+
 struct str memAllPath [100]; // array per meorizzare i path dei file da inviare
 
 //funzione per leggere tutti i file dentro ad una directory
-int readDir(const char dirpath[]){
+int readDir(char dirpath[]){
   
   int n_file = 0; // contatore numero di file che inziano con sendme_
   char dest[strlen(dirpath)];
 
-  DIR *dirp = opendir(dirpath); //apro directory
+  printf("%s", dirpath);
+
+  DIR *dirp = opendir("FolderTest"); //apro directory
   if(dirp == NULL)
     errExit("opendir failed");
   
@@ -40,7 +43,7 @@ int readDir(const char dirpath[]){
       
     }else if(dentry->d_type == DT_DIR){// se leggo una directory richiamo funzione
       strcat(dest, dentry->d_name); 
-      n_file += readDir(dentry->d_name); // aggiungo i file trovati nelle sotto cartelle
+      n_file += readDir(dest); // aggiungo i file trovati nelle sotto cartelle
       }
   }
 
@@ -58,10 +61,13 @@ void sigHandler(int sig) {
       if(sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
         errExit("mask fail");
       //cambio directory di lavoro
-      if(chdir(newDir) == -1)
-        errExit("chdir failed");
+      /*if(chdir(newDir) == -1)
+        errExit("chdir failed");*/
+      
       //output su terminale, si può usare printf? ricky dice di sì
-      printf("Ciao %s, ora inzio l'invio dei file contenuti in %s.\n", getenv("USER"), getenv("PWD"));
+      char buffer[PATH_MAX];
+      getcwd(buffer, PATH_MAX);
+      printf("Ciao %s, ora inzio l'invio dei file contenuti in %s.\n", getenv("USER"), buffer);
 
      //controllo cartelle
       int n_file = readDir(newDir);
@@ -81,7 +87,7 @@ int main(int argc, char * argv[]) {
           errExit("write on STDOUT failed");
         return 1;
     }
-  newDir = argv[1];
+  strcat(newDir, argv[1]);
 
   
   //lato client apertura di fifo, mssgqueue, shared memory...VA FATTA DAI CHILD?

@@ -12,8 +12,8 @@
 int main(int argc, char * argv[]) {
 
   //creo path fifo1 e fifo2
-  char *pathF1 = "fifo1";
-  char *pathF2 = "fifo2";
+  char *pathF1 = fifo1;
+  char *pathF2 = fifo2;
 
   //creo le key 
   key_t msgq_k = ftok(".", KEY_MSGQ);
