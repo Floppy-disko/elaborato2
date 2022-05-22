@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include<stdio.h>
+
 #define KEY_MSGQ 'A'
 #define KEY_SHDMEM 'B'
 

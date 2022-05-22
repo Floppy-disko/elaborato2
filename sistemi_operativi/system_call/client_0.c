@@ -7,15 +7,10 @@
 #include "semaphore.h"
 #include "fifo.h"
 
-#include <stdio.h>
-
 char *newDir;
 sigset_t SigSet;
 
-struct str {
-    char Path[PATH_MAX];
-};
-struct str memAllPath[100]; // array per meorizzare i path dei file da inviare
+char memAllPath[100][PATH_MAX]; // array per meorizzare i path dei file da inviare
 
 //funzione per leggere tutti i file dentro ad una directory
 int readDir(const char dirpath[]) {
@@ -30,17 +25,15 @@ int readDir(const char dirpath[]) {
     errno = 0;
     struct dirent *dentry;
     while ((dentry = readdir(dirp)) != NULL) { // scorro tutta la directory
-        strcpy(dest, dirpath);
 
         if (dentry->d_type == DT_REG) { // caso base: ho letto un file
             if (strncmp("sendme_", dentry->d_name, 7) == 0) { // valuto se è quello che voglio
-                strcat(dest, dentry->d_name);  // ottengo path finale
-                strcpy(memAllPath[n_file].Path, dest);
+                sprintf(dest, "%s/%s", dirpath, dentry->d_name);  // ottengo path finale del file
+                strcpy(memAllPath[n_file], dest);
                 n_file++; // incremento contatore
             }
 
         } else if (dentry->d_type == DT_DIR && strcmp(dentry->d_name, ".")!=0 && strcmp(dentry->d_name, "..")!=0) {// se leggo una directory richiamo funzione
-            //strcat(dest, dentry->d_name);
             sprintf(dest, "%s/%s", dirpath, dentry->d_name);
             n_file += readDir(dest); // aggiungo i file trovati nelle sotto cartelle
         }
@@ -58,29 +51,31 @@ int readDir(const char dirpath[]) {
     return n_file;
 }
 
-void sigHandler(int sig) {
-    if(sig == SIGUSR1)
-      exit(0);
-    if(sig == SIGINT){
-      
-      //blocco segnali
-      if(sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
-        errExit("mask fail");
-      //cambio directory di lavoro
-//      char buf[PATH_MAX];
-//      printf("%s",getcwd(buf, PATH_MAX));
-      if(chdir(newDir) == -1)
-        errExit("chdir failed");
-      //output su terminale, si può usare printf? ricky dice di sì
-      printf("Ciao %s, ora inzio l'invio dei file contenuti in %s.\n", getenv("USER"), getenv("PWD"));
+void sigHandlerUSR1(int sig){
+    exit(0);
+}
 
-     //controllo cartelle
-      int n_file = readDir(newDir);
-      
-      
-      if(sigprocmask(SIG_UNBLOCK, &SigSet, NULL) == -1)
+void sigHandlerINT(int sig) {
+
+    //blocco segnali
+    if (sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
         errExit("mask fail");
-    }
+    //cambio directory di lavoro
+    //char buf[PATH_MAX];
+    //printf("%s", getcwd(buf, PATH_MAX));
+    if (chdir(newDir) == -1)
+        errExit("chdir failed");
+    //output su terminale, si può usare printf? ricky dice di sì
+    printf("Ciao %s, ora inzio l'invio dei file contenuti in %s.\n", getenv("USER"), getenv("PWD"));
+
+    //controllo cartelle
+    int n_file = readDir(newDir);
+    printf("\n%d file trovati: ", n_file);
+    for (int i = 0; i < n_file; i++)
+        printf("\n%d) %s", i, memAllPath[i]);
+
+    if (sigprocmask(SIG_UNBLOCK, &SigSet, NULL) == -1)
+        errExit("mask fail");
 }
 
 int main(int argc, char * argv[]) {
@@ -135,9 +130,9 @@ int main(int argc, char * argv[]) {
   if(sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
     errExit("mask fail");
   //setto gli handler
-  if(signal(SIGINT, sigHandler) == SIG_ERR)
+  if(signal(SIGINT, sigHandlerINT) == SIG_ERR)
     errExit("change signal handler failed");
-  if(signal(SIGUSR1, sigHandler) == SIG_ERR)
+  if(signal(SIGUSR1, sigHandlerUSR1) == SIG_ERR)
     errExit("change signal handler failed");
 
   //loop di attesa di SIGINT
