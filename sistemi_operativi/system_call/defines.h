@@ -21,9 +21,8 @@
 
 #define KEY_MSGQ 'A'
 #define KEY_SHDMEM 'B'
-
-#define fifo1 "fifo1"
-#define fifo2 "fifo2"
+#define PATH_FIFO1 "fifo1"
+#define PATH_FIFO2 "fifo2"
 
 //array per in controllo della shared memory, dove è 0 è sopazio vuoto, dove 1 è occupato
 int SHDMEMcontroll[50];

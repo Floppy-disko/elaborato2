@@ -13,10 +13,10 @@ sigset_t SigSet;
 char memAllPath[100][PATH_MAX]; // array per meorizzare i path dei file da inviare
 
 //funzione per leggere tutti i file dentro ad una directory
-int readDir(const char dirpath[]) {
+int readDir(const char dirpath[], off_t maxSize) {
 
     int n_file = 0; // contatore numero di file che inziano con sendme_
-    char dest[PATH_MAX];
+    char nodePath[PATH_MAX];
 
     DIR *dirp = opendir(dirpath); //apro directory
     if (dirp == NULL)
@@ -26,16 +26,23 @@ int readDir(const char dirpath[]) {
     struct dirent *dentry;
     while ((dentry = readdir(dirp)) != NULL) { // scorro tutta la directory
 
-        if (dentry->d_type == DT_REG) { // caso base: ho letto un file
-            if (strncmp("sendme_", dentry->d_name, 7) == 0) { // valuto se è quello che voglio
-                sprintf(dest, "%s/%s", dirpath, dentry->d_name);  // ottengo path finale del file
-                strcpy(memAllPath[n_file], dest);
+        if (dentry->d_type == DT_REG && strncmp("sendme_", dentry->d_name, 7) == 0) { // caso base: ho letto un file che voglio
+            sprintf(nodePath, "%s/%s", dirpath, dentry->d_name);  // ottengo path finale del file
+            struct stat statbuf;
+            if (stat(nodePath, &statbuf) == -1)
+                errExit("stat failed");
+
+            if(statbuf.st_size < maxSize) { //verifico che il file non pesi più di 4kb
+                if(n_file>=100)  //massimo 100 file
+                    exit(1);
+
+                strcpy(memAllPath[n_file], nodePath);
                 n_file++; // incremento contatore
             }
 
         } else if (dentry->d_type == DT_DIR && strcmp(dentry->d_name, ".")!=0 && strcmp(dentry->d_name, "..")!=0) {// se leggo una directory richiamo funzione
-            sprintf(dest, "%s/%s", dirpath, dentry->d_name);
-            n_file += readDir(dest); // aggiungo i file trovati nelle sotto cartelle
+            sprintf(nodePath, "%s/%s", dirpath, dentry->d_name);
+            n_file += readDir(nodePath, maxSize); // aggiungo i file trovati nelle sotto cartelle
         }
 
         errno = 0;
@@ -67,7 +74,6 @@ int main(int argc, char *argv[]) {
     }
 
     newDir = argv[1];
-
 
     //lato client apertura di fifo, mssgqueue, shared memory...VA FATTA DAI CHILD?
     /*
@@ -116,21 +122,21 @@ int main(int argc, char *argv[]) {
 
     //loop con il codice vero e proprio del main
     while (1) {
-        pause(); //aspetto un segnale
+        //pause(); //aspetto un segnale
 
         //blocco segnali
         if (sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
             errExit("mask fail");
         //cambio directory di lavoro
-        //char buf[PATH_MAX];
+        char buf[PATH_MAX];
         //printf("%s", getcwd(buf, PATH_MAX));
         if (chdir(newDir) == -1)
             errExit("chdir failed");
         //output su terminale, si può usare printf? ricky dice di sì
-        printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), getenv("PWD"));
+        printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), getcwd(buf, PATH_MAX));
 
         //controllo cartelle
-        int n_file = readDir(newDir);
+        int n_file = readDir(newDir, 4096);
         printf("\n%d file trovati: ", n_file);
         for (int i = 0; i < n_file; i++)
             printf("\n%d) %s", i, memAllPath[i]);
