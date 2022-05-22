@@ -1,68 +1,7 @@
 /// @file client.c
 /// @brief Contiene l'implementazione del client.
 
-#include "err_exit.h"
 #include "defines.h"
-#include "shared_memory.h"
-#include "semaphore.h"
-#include "fifo.h"
-
-int fifo1=-1;
-char fifo1Path[FILE_PATH_MAX];
-int fifo2=-1;
-char fifo2Path[FILE_PATH_MAX];
-
-int msqid=-1;
-int shdmemid=-1;
-void *shdememBuffer = NULL;
-
-char memAllPath[100][FILE_PATH_MAX]; // array per meorizzare i path dei file da inviare
-
-//funzione per leggere tutti i file dentro ad una directory
-int readDir(const char dirpath[], off_t maxSize) {
-
-    int n_file = 0; // contatore numero di file che inziano con sendme_
-    char nodePath[FILE_PATH_MAX];
-
-    DIR *dirp = opendir(dirpath); //apro directory
-    if (dirp == NULL)
-        errExit("opendir failed");
-
-    errno = 0;
-    struct dirent *dentry;
-    while ((dentry = readdir(dirp)) != NULL) { // scorro tutta la directory
-
-        if (dentry->d_type == DT_REG && strncmp("sendme_", dentry->d_name, 7) == 0) { // caso base: ho letto un file che voglio
-            sprintf(nodePath, "%s/%s", dirpath, dentry->d_name);  // ottengo path finale del file
-            struct stat statbuf;
-            if (stat(nodePath, &statbuf) == -1)
-                errExit("stat failed");
-
-            if(statbuf.st_size < maxSize) { //verifico che il file non pesi più di 4kb
-                if(n_file>=100)  //massimo 100 file
-                    exit(1);
-
-                strcpy(memAllPath[n_file], nodePath);
-                n_file++; // incremento contatore
-            }
-
-        } else if (dentry->d_type == DT_DIR && strcmp(dentry->d_name, ".")!=0 && strcmp(dentry->d_name, "..")!=0) {// se leggo una directory richiamo funzione
-            sprintf(nodePath, "%s/%s", dirpath, dentry->d_name);
-            n_file += readDir(nodePath, maxSize); // aggiungo i file trovati nelle sotto cartelle
-        }
-
-        errno = 0;
-    }
-
-    char errMsg[100] = "Error while reading directory ";
-    strcat(errMsg, dirpath);
-    if (errno != 0)
-        errExit(errMsg);
-
-    closedir(dirp);
-
-    return n_file;
-}
 
 void sigHandler(int sig) { //serve solo per interrompere la pause
     if(sig==SIGUSR1) {
@@ -150,7 +89,7 @@ int main(int argc, char *argv[]) {
         printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), getcwd(buf, FILE_PATH_MAX));
 
         //controllo cartelle
-        int n_file = readDir(newDir, 4096);
+        int n_file = readDir(newDir, FILE_SIZE_MAX, "sendme_");
         printf("\n%d file trovati: ", n_file);
         for (int i = 0; i < n_file; i++)
             printf("\n%d) %s", i, memAllPath[i]);

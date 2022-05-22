@@ -1,20 +1,7 @@
 /// @file sender_manager.c
 /// @brief Contiene l'implementazione del sender_manager.
 
-#include "err_exit.h"
 #include "defines.h"
-#include "shared_memory.h"
-#include "semaphore.h"
-#include "fifo.h"
-
-int fifo1=-1;
-char fifo1Path[FILE_PATH_MAX];
-int fifo2=-1;
-char fifo2Path[FILE_PATH_MAX];
-
-int msqid=-1;
-int shdmemid=-1;
-void *shdememBuffer = NULL;
 
 void sigHandler(int sig){
     if(sig==SIGINT){     //chiudo ed elimino le ipc
@@ -59,7 +46,7 @@ int main(int argc, char *argv[]) {
         errExit("msgget failled");
 
     //creo shd memory
-    int shdmSize = sizeof(struct bareMessage)*MSG_MAX + sizeof(shdmControll); //alloco spazio per 50 messagi più il vettore di supporto
+    int shdmSize = sizeof(struct bareMessage)*MSG_MAX + sizeof(shdmControl); //alloco spazio per 50 messagi più il vettore di supporto
     shdmemid = alloc_shared_memory(shdmem_k, shdmSize);
     shdememBuffer = get_shared_memory(shdmemid, 0);
 
