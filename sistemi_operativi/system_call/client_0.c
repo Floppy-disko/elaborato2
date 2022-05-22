@@ -13,7 +13,7 @@ char *newDir;
 sigset_t SigSet;
 
 struct str {
-    char Path[150];
+    char Path[PATH_MAX];
 };
 struct str memAllPath[100]; // array per meorizzare i path dei file da inviare
 
@@ -21,7 +21,7 @@ struct str memAllPath[100]; // array per meorizzare i path dei file da inviare
 int readDir(const char dirpath[]) {
 
     int n_file = 0; // contatore numero di file che inziano con sendme_
-    char dest[strlen(dirpath) + 1];
+    char dest[PATH_MAX];
 
     DIR *dirp = opendir(dirpath); //apro directory
     if (dirp == NULL)
@@ -39,9 +39,10 @@ int readDir(const char dirpath[]) {
                 n_file++; // incremento contatore
             }
 
-        } else if (dentry->d_type == DT_DIR) {// se leggo una directory richiamo funzione
-            strcat(dest, dentry->d_name);
-            n_file += readDir(dentry->d_name); // aggiungo i file trovati nelle sotto cartelle
+        } else if (dentry->d_type == DT_DIR && strcmp(dentry->d_name, ".")!=0 && strcmp(dentry->d_name, "..")!=0) {// se leggo una directory richiamo funzione
+            //strcat(dest, dentry->d_name);
+            sprintf(dest, "%s/%s", dirpath, dentry->d_name);
+            n_file += readDir(dest); // aggiungo i file trovati nelle sotto cartelle
         }
 
         errno = 0;
@@ -66,6 +67,8 @@ void sigHandler(int sig) {
       if(sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
         errExit("mask fail");
       //cambio directory di lavoro
+//      char buf[PATH_MAX];
+//      printf("%s",getcwd(buf, PATH_MAX));
       if(chdir(newDir) == -1)
         errExit("chdir failed");
       //output su terminale, si può usare printf? ricky dice di sì
@@ -139,7 +142,7 @@ int main(int argc, char * argv[]) {
 
   //loop di attesa di SIGINT
   while(1){
-    sleep(10);
+    //sleep(10);
   }
 
     return 0;
