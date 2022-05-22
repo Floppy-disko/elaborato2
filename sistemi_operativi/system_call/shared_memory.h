@@ -7,7 +7,7 @@
 #include <stdlib.h>
 
 //creo shared memory
-int alloc_shared_memory(key_t shmKey);
+int alloc_shared_memory(key_t shmKey, size_t size);
 
 //attacco shered memory
 void *get_shared_memory(int shmid, int shmflg);

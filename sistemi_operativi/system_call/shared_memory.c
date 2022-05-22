@@ -10,9 +10,7 @@
 
 
 
- int alloc_shared_memory(key_t shmKey) {
-    // get, or create, a shared memory segment of size 50
-    size_t size = 50;
+ int alloc_shared_memory(key_t shmKey, size_t size) {
    
     int shmid = shmget(shmKey, size, IPC_CREAT|S_IWUSR|S_IRUSR);
     if(shmid== -1)

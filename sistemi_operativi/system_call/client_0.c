@@ -7,16 +7,22 @@
 #include "semaphore.h"
 #include "fifo.h"
 
-char *newDir;
-sigset_t SigSet;
+int fifo1=-1;
+char fifo1Path[FILE_PATH_MAX];
+int fifo2=-1;
+char fifo2Path[FILE_PATH_MAX];
 
-char memAllPath[100][PATH_MAX]; // array per meorizzare i path dei file da inviare
+int msqid=-1;
+int shdmemid=-1;
+void *shdememBuffer = NULL;
+
+char memAllPath[100][FILE_PATH_MAX]; // array per meorizzare i path dei file da inviare
 
 //funzione per leggere tutti i file dentro ad una directory
 int readDir(const char dirpath[], off_t maxSize) {
 
     int n_file = 0; // contatore numero di file che inziano con sendme_
-    char nodePath[PATH_MAX];
+    char nodePath[FILE_PATH_MAX];
 
     DIR *dirp = opendir(dirpath); //apro directory
     if (dirp == NULL)
@@ -59,8 +65,13 @@ int readDir(const char dirpath[], off_t maxSize) {
 }
 
 void sigHandler(int sig) { //serve solo per interrompere la pause
-    if(sig==SIGUSR1)
+    if(sig==SIGUSR1) {
+        if(close(fifo1)==-1 || close(fifo2)==-1)
+            errExit("Closing fifos FDs failed");
+
+        free_shared_memory(shdememBuffer);
         exit(0);
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -73,39 +84,42 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    newDir = argv[1];
+    char newDir[FILE_PATH_MAX];
+    strcpy(newDir, argv[1]);
 
     //lato client apertura di fifo, mssgqueue, shared memory...VA FATTA DAI CHILD?
-    /*
-    //creo path fifo1 e fifo2
-    char *pathF1 = fifo1;
-    char *pathF2 = fifo2;
 
-    //creo le key
-    key_t msgq_k = ftok(".", KEY_MSGQ);
-    key_t shdmem_k = ftok(".", KEY_SHDMEM);
+    key_t msgq_k = ftok(getenv("HOME"), KEY_MSGQ);
+    if(msgq_k==-1)
+        errExit("ftok msgq failed");
+    key_t shdmem_k = ftok(getenv("HOME"), KEY_SHDMEM);
+    if(shdmem_k==-1)
+        errExit("ftok shdmem failed");
 
-    //apro in scrittura le fifo
-    int fifo1 = open(pathF1, O_WRONLY);
-    if(fifo1 == -1)
-      errExit("open fifo1 failed");
+    //prendo fifo1 creata da server
+    sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
+    fifo1 = open(fifo1Path, O_WRONLY);
+    if (fifo1 == -1)
+        errExit("open fifo1 failed");
 
-    int fifo2 = open(pathF2, O_WRONLY);
-    if(fifo1 == -1)
-      errExit("open fifo2 failed");
+    //prendo fifo2 creata da server
+    sprintf(fifo2Path, "%s/%s", getenv("HOME"), PATH_FIFO2);
+    fifo2 = open(fifo2Path, O_WRONLY);
+    if (fifo2 == -1)
+        errExit("open fifo2 failed");
 
-    //apro msg queue
-    int msqid = msgget(msgq_k, S_IRUSR|S_IWUSR);
-    if(msqid == -1)
-      errExit("msgget failled");
+    //prendo msg queue creata da server
+    msqid = msgget(msgq_k, S_IRUSR | S_IWUSR);
+    if (msqid == -1)
+        errExit("msgget failled");
 
-    //attacco shared memory
-    int shmidServer = alloc_shared_memory(shdmem_k);
-    int *SHDMEMbuffer = get_shared_memory(shmidServer, 0);*/
-
+    //ottengo shd memory creata da server
+    shdmemid = alloc_shared_memory(shdmem_k, 0);
+    shdememBuffer = get_shared_memory(shdmemid, 0);
 
 
     //  ***** SETTO SEGNALI *****
+    sigset_t SigSet;
     if (sigfillset(&SigSet) == -1)
         errExit("filling mySet fail");
     if (sigdelset(&SigSet, SIGINT) == -1)
@@ -122,18 +136,18 @@ int main(int argc, char *argv[]) {
 
     //loop con il codice vero e proprio del main
     while (1) {
-        //pause(); //aspetto un segnale
+        pause(); //aspetto un segnale
 
         //blocco segnali
         if (sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
             errExit("mask fail");
         //cambio directory di lavoro
-        char buf[PATH_MAX];
-        //printf("%s", getcwd(buf, PATH_MAX));
+        char buf[FILE_PATH_MAX];
+        //printf("%s", getcwd(buf, FILE_PATH_MAX));
         if (chdir(newDir) == -1)
             errExit("chdir failed");
         //output su terminale, si può usare printf? ricky dice di sì
-        printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), getcwd(buf, PATH_MAX));
+        printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), getcwd(buf, FILE_PATH_MAX));
 
         //controllo cartelle
         int n_file = readDir(newDir, 4096);
