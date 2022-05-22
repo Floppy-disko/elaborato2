@@ -1,5 +1,7 @@
 include_directories(.)
 
+add_compile_options(-Wall -std=gnu99)
+
 add_executable(client_0
         client_0.c
         defines.c

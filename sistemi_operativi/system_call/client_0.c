@@ -51,94 +51,97 @@ int readDir(const char dirpath[]) {
     return n_file;
 }
 
-void sigHandlerUSR1(int sig){
-    exit(0);
+void sigHandler(int sig) { //serve solo per interrompere la pause
+    if(sig==SIGUSR1)
+        exit(0);
 }
 
-void sigHandlerINT(int sig) {
+int main(int argc, char *argv[]) {
 
-    //blocco segnali
-    if (sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
-        errExit("mask fail");
-    //cambio directory di lavoro
-    //char buf[PATH_MAX];
-    //printf("%s", getcwd(buf, PATH_MAX));
-    if (chdir(newDir) == -1)
-        errExit("chdir failed");
-    //output su terminale, si può usare printf? ricky dice di sì
-    printf("Ciao %s, ora inzio l'invio dei file contenuti in %s.\n", getenv("USER"), getenv("PWD"));
-
-    //controllo cartelle
-    int n_file = readDir(newDir);
-    printf("\n%d file trovati: ", n_file);
-    for (int i = 0; i < n_file; i++)
-        printf("\n%d) %s", i, memAllPath[i]);
-
-    if (sigprocmask(SIG_UNBLOCK, &SigSet, NULL) == -1)
-        errExit("mask fail");
-}
-
-int main(int argc, char * argv[]) {
-
-  //  ***** CONTROLLO CORRETEZZA INPUT: ./Client_0 <HOME>/myDir/ *****
-  if (argc != 2) {
-        char buffer[] = "Usage: ./client <HOME>myDir\n"; //modifcare messaggio se neccessario
-        if(write(STDOUT_FILENO, buffer, sizeof(buffer)) == -1)
-          errExit("write on STDOUT failed");
+    //  ***** CONTROLLO CORRETEZZA INPUT: ./Client_0 <HOME>/myDir/ *****
+    if (argc != 2) {
+        char buffer[] = "\nUsage: ./client <HOME>/myDir"; //modifcare messaggio se neccessario
+        if (write(STDOUT_FILENO, buffer, sizeof(buffer)) == -1)
+            errExit("write on STDOUT failed");
         return 1;
     }
-  newDir = argv[1];
 
-  
-  //lato client apertura di fifo, mssgqueue, shared memory...VA FATTA DAI CHILD?
-  /* 
-  //creo path fifo1 e fifo2
-  char *pathF1 = fifo1;
-  char *pathF2 = fifo2;
-
-  //creo le key 
-  key_t msgq_k = ftok(".", KEY_MSGQ);
-  key_t shdmem_k = ftok(".", KEY_SHDMEM);
-
-  //apro in scrittura le fifo
-  int fifo1 = open(pathF1, O_WRONLY);
-  if(fifo1 == -1)
-    errExit("open fifo1 failed");
-
-  int fifo2 = open(pathF2, O_WRONLY);
-  if(fifo1 == -1)
-    errExit("open fifo2 failed");
-
-  //apro msg queue
-  int msqid = msgget(msgq_k, S_IRUSR|S_IWUSR);
-  if(msqid == -1)
-    errExit("msgget failled");
-
-  //attacco shared memory
-  int shmidServer = alloc_shared_memory(shdmem_k);
-  int *SHDMEMbuffer = get_shared_memory(shmidServer, 0);*/
+    newDir = argv[1];
 
 
-  
-  //  ***** SETTO SEGNALI *****
-  if(sigfillset(&SigSet) == -1)
-      errExit("filling mySet fail");
-  if(sigdelset(&SigSet, SIGINT) == -1)
-    errExit("deleting mySet fail");
-  if(sigdelset(&SigSet, SIGUSR1) == -1)
-    errExit("deleting mySet fail");
-  if(sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
-    errExit("mask fail");
-  //setto gli handler
-  if(signal(SIGINT, sigHandlerINT) == SIG_ERR)
-    errExit("change signal handler failed");
-  if(signal(SIGUSR1, sigHandlerUSR1) == SIG_ERR)
-    errExit("change signal handler failed");
+    //lato client apertura di fifo, mssgqueue, shared memory...VA FATTA DAI CHILD?
+    /*
+    //creo path fifo1 e fifo2
+    char *pathF1 = fifo1;
+    char *pathF2 = fifo2;
 
-  //loop di attesa di SIGINT
-  while(1){
-    //sleep(10);
-  }
+    //creo le key
+    key_t msgq_k = ftok(".", KEY_MSGQ);
+    key_t shdmem_k = ftok(".", KEY_SHDMEM);
+
+    //apro in scrittura le fifo
+    int fifo1 = open(pathF1, O_WRONLY);
+    if(fifo1 == -1)
+      errExit("open fifo1 failed");
+
+    int fifo2 = open(pathF2, O_WRONLY);
+    if(fifo1 == -1)
+      errExit("open fifo2 failed");
+
+    //apro msg queue
+    int msqid = msgget(msgq_k, S_IRUSR|S_IWUSR);
+    if(msqid == -1)
+      errExit("msgget failled");
+
+    //attacco shared memory
+    int shmidServer = alloc_shared_memory(shdmem_k);
+    int *SHDMEMbuffer = get_shared_memory(shmidServer, 0);*/
+
+
+
+    //  ***** SETTO SEGNALI *****
+    if (sigfillset(&SigSet) == -1)
+        errExit("filling mySet fail");
+    if (sigdelset(&SigSet, SIGINT) == -1)
+        errExit("deleting mySet fail");
+    if (sigdelset(&SigSet, SIGUSR1) == -1)
+        errExit("deleting mySet fail");
+    if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
+        errExit("mask fail");
+    //setto gli handler
+    if (signal(SIGINT, sigHandler) == SIG_ERR)
+        errExit("change signal handler failed");
+    if (signal(SIGUSR1, sigHandler) == SIG_ERR)
+        errExit("change signal handler failed");
+
+    //loop con il codice vero e proprio del main
+    while (1) {
+        pause(); //aspetto un segnale
+
+        //blocco segnali
+        if (sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
+            errExit("mask fail");
+        //cambio directory di lavoro
+        //char buf[PATH_MAX];
+        //printf("%s", getcwd(buf, PATH_MAX));
+        if (chdir(newDir) == -1)
+            errExit("chdir failed");
+        //output su terminale, si può usare printf? ricky dice di sì
+        printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), getenv("PWD"));
+
+        //controllo cartelle
+        int n_file = readDir(newDir);
+        printf("\n%d file trovati: ", n_file);
+        for (int i = 0; i < n_file; i++)
+            printf("\n%d) %s", i, memAllPath[i]);
+        fflush(stdout);
+
+
+        //...
+
+        if (sigprocmask(SIG_UNBLOCK, &SigSet, NULL) == -1)
+            errExit("mask fail");
+    }
 
     return 0;
 }

@@ -23,12 +23,12 @@
 
 void *get_shared_memory(int shmid, int shmflg) {
     // attach the shared memory
-    int *shmAtID = (int *) shmat(shmid, NULL, shmflg);
+    void *shmadr = shmat(shmid, NULL, shmflg);
 
-    if(shmAtID == -1)
+    if(shmadr == (void*)-1)
       errExit("shmat failled");
   
-    return shmAtID;
+    return shmadr;
 }
 
 void free_shared_memory(void *ptr_sh) {
