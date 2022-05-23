@@ -55,12 +55,13 @@ int findFiles(const char dirpath[], off_t maxSize, char *match) {
 ///@param ptr_sh puntatore alla shared memory strutturata
 ///@param filePath path del file di cui invio un quarto
 ///@param text testo da scrivere nel bare message
+//TODO non so se gli strcpy funzionino come penso
 void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text){
-    struct bareMessage message = {
-            getpid(),
-            filePath,
-            text
-    };
+    //copio le stringhe perchè i parametri sono solo puntatori a stringhe gestite da un processo
+    struct bareMessage message;
+    message.pid = getpid();
+    strcpy(message.path, filePath);
+    strcpy(message.part, text);
     //TODO qui sarebbe da mettere un semaforo mutex per evitare che più di un processo acceda alla shared memory e uno per verificare che non sia già piena
 
     ptr_sh->messages[ptr_sh->in] = message;  //metto il messaggio nella prima cella libera del buffer circolare
@@ -69,11 +70,16 @@ void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text)
 }
 
 ///@param wait a 1 se la lettura è bloccante, a 0 se la lettura non è bloccante
+//TODO non so se gli strcpy funzionino come penso
 struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait){
-    struct bareMessage message;
+    struct bareMessage messageCopy;
     //TODO sarebbe da mettere un semaforo mutex e uno per vedere che non sia vuota
-    message = ptr_sh->messages[ptr_sh->out];  //prendo il messaggio della prima cella piena nel buffer circolare
+    //prendo il messaggio della prima cella piena nel buffer circolare e la copio in messageCopy
+    struct bareMessage message = ptr_sh->messages[ptr_sh->out];
+    messageCopy.pid = message.pid;
+    strcpy(messageCopy.path, message.path);
+    strcpy(messageCopy.part, message.part);
     ptr_sh->out = (ptr_sh->out + 1) % MSG_NUMBER_MAX;
     //TODO aprire semaforo mutex e aumentare il semaforo della vuotezza
-    return message;
+    return messageCopy;
 }

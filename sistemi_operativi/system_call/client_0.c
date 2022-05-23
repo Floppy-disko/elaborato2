@@ -35,15 +35,18 @@ int main(int argc, char *argv[]) {
     if(shdmem_k==-1)
         errExit("ftok shdmem failed");
 
-    //TODO funziona solo se lancio prima il server che crea le fifo, sennò client_0 priva ad aprire fifo inseistenti, non so se vada bene forese serve semaforo
     //prendo fifo1 creata da server
     sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
+    while(access(fifo1Path, F_OK)==-1); //finchè la fifo non è stata creata aspetta
+
     fifo1 = open(fifo1Path, O_WRONLY);
     if (fifo1 == -1)
         errExit("open fifo1 failed");
 
     //prendo fifo2 creata da server
     sprintf(fifo2Path, "%s/%s", getenv("HOME"), PATH_FIFO2);
+    while(access(fifo2Path, F_OK)==-1);
+
     fifo2 = open(fifo2Path, O_WRONLY);
     if (fifo2 == -1)
         errExit("open fifo2 failed");

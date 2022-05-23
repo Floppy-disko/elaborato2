@@ -16,6 +16,9 @@ void sigHandler(int sig){
         free_shared_memory(shdmemBuffer);
         remove_shared_memory(shdmemid);
 
+        if (semctl(semShdmemid, 0, IPC_RMID) == -1)
+            errExit("semctl IPC_RMID failed");
+
         exit(0);
     }
 }
@@ -29,6 +32,10 @@ int main(int argc, char *argv[]) {
     key_t shdmem_k = ftok(getenv("HOME"), KEY_SHDMEM);
     if(shdmem_k==-1)
         errExit("ftok shdmem failed");
+
+    key_t semShdmem_k = ftok(getenv("HOME"), KEY_SEM_SHDMEM);
+    if(shdmem_k==-1)
+        errExit("ftok semShdmem failed");
 
     //creo fifo1
     sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
@@ -52,6 +59,18 @@ int main(int argc, char *argv[]) {
 
     shdmemBuffer->in = 0; //all inizio tutte le celle sono vuote
     shdmemBuffer->out = 0;
+
+    semShdmemid = semget(semShdmem_k, 3, S_IRUSR | S_IWUSR | IPC_CREAT);
+    if (semShdmemid == -1)
+        errExit("semget failed");
+
+    unsigned short semShdmemInitVal[] = {0, 0, MSG_NUMBER_MAX};
+    union semun arg;
+    arg.array = semShdmemInitVal;
+
+    //setta i semafori 0)mutex=0, 1)full=0, 2)empty=50
+    if (semctl(semShdmemid, 0, SETALL, arg))
+        errExit("semctl SETALL failed");
 
     //ora apro le fifo in lettura
     fifo1 = open(fifo1Path, O_RDONLY);

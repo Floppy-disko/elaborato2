@@ -9,6 +9,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
+#include <sys/sem.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <string.h>
@@ -32,6 +33,7 @@
 
 #define KEY_MSGQ 'A'
 #define KEY_SHDMEM 'B'
+#define KEY_SEM_SHDMEM 'C'
 #define PATH_FIFO1 "fifo1"
 #define PATH_FIFO2 "fifo2"
 
@@ -48,7 +50,7 @@ struct shdmemStructure{  //utilizza array di 50 int come vettore di supporto
     struct bareMessage messages[MSG_NUMBER_MAX];
 };
 
-//definizione variabili ipc e fifo
+//definizione variabili per ipc, fifo e semafori
 int fifo1;
 char fifo1Path[FILE_PATH_MAX];
 int fifo2;
@@ -56,7 +58,9 @@ char fifo2Path[FILE_PATH_MAX];
 int msqid;
 int shdmemid;
 struct shdmemStructure *shdmemBuffer;
-int n_file;
+int semShdmemid;
+
+int n_file; //variabile modificata da findFiles
 
 char memAllPath[FILE_NUMBER_MAX][FILE_PATH_MAX]; // array per memorizzare i path dei file da inviare/ ricevuti
 
