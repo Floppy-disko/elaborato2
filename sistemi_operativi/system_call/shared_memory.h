@@ -18,3 +18,4 @@ void free_shared_memory(void *ptr_sh);
 
 //elimino shared memory
 void remove_shared_memory(int shmid);
+

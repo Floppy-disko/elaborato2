@@ -8,7 +8,7 @@ void sigHandler(int sig) { //serve solo per interrompere la pause
         if(close(fifo1)==-1 || close(fifo2)==-1)
             errExit("Closing fifos FDs failed");
 
-        free_shared_memory(shdememBuffer);
+        free_shared_memory(shdmemBuffer);
         exit(0);
     }
 }
@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
     if(shdmem_k==-1)
         errExit("ftok shdmem failed");
 
+    //TODO funziona solo se lancio prima il server che crea le fifo, sennò client_0 priva ad aprire fifo inseistenti, non so se vada bene forese serve semaforo
     //prendo fifo1 creata da server
     sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
     fifo1 = open(fifo1Path, O_WRONLY);
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
 
     //ottengo shd memory creata da server
     shdmemid = alloc_shared_memory(shdmem_k, 0);
-    shdememBuffer = get_shared_memory(shdmemid, 0);
+    shdmemBuffer = get_shared_memory(shdmemid, 0);
 
 
     //  ***** SETTO SEGNALI *****
@@ -89,13 +90,25 @@ int main(int argc, char *argv[]) {
         printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), getcwd(buf, FILE_PATH_MAX));
 
         //controllo cartelle
-        int n_file = readDir(newDir, FILE_SIZE_MAX, "sendme_");
+        n_file = 0;  //readDir modificherà il valore della avriabile flobale n_file e riempirà l'array memallpath coi path dei files
+        findFiles(newDir, FILE_SIZE_MAX, "sendme_");
         printf("\n%d file trovati: ", n_file);
         for (int i = 0; i < n_file; i++)
             printf("\n%d) %s", i, memAllPath[i]);
         fflush(stdout);
 
+        char n_fileString[4];
+        sprintf(n_fileString, "%d", n_file); //converto il numero di file in stringa da inviare sulla fifo
+        if(write(fifo1, n_fileString, sizeof(n_fileString))==-1)  //scrivo sulla fifo1 il numero di file
+            errExit("Write failed");
 
+        printf("\nAttendo conferma ricezione da server");
+        struct bareMessage message = read_from_shdmem(shdmemBuffer, 1);
+        if(strncmp("Conferma", message.part, sizeof("Conferma"))==0)
+            printf("Il server conferma!");
+        else
+            printf("\nLa conferma ha un testo inaspettato: %s", message.part);
+        fflush(stdout);
         //...
 
         if (sigprocmask(SIG_UNBLOCK, &SigSet, NULL) == -1)

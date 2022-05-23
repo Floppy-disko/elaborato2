@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include<stdio.h>
 
@@ -24,22 +25,27 @@
 #include "semaphore.h"
 #include "fifo.h"
 
-#define FILE_PATH_MAX 100
+#define FILE_NUMBER_MAX 100
+#define FILE_PATH_MAX 150
 #define FILE_SIZE_MAX 4096
+#define MSG_NUMBER_MAX 50
 
 #define KEY_MSGQ 'A'
 #define KEY_SHDMEM 'B'
 #define PATH_FIFO1 "fifo1"
 #define PATH_FIFO2 "fifo2"
-#define MSG_MAX
-
-//array per in controllo della shared memory, dove è 0 è sopazio vuoto, dove 1 è occupato
-int shdmControl[50];
 
 struct bareMessage {
     pid_t pid;  //pid processo inviante
     char path[FILE_PATH_MAX];  //path file
     char part[1024];      //quarto del file di testo
+};
+
+//struttura che rappresenta l'intera shared memory
+struct shdmemStructure{  //utilizza array di 50 int come vettore di supporto
+    int in;
+    int out;  //in e out sono gli stessi del produttore-consumatore su un buffer circolare in sistemi operativi
+    struct bareMessage messages[MSG_NUMBER_MAX];
 };
 
 //definizione variabili ipc e fifo
@@ -49,8 +55,14 @@ int fifo2;
 char fifo2Path[FILE_PATH_MAX];
 int msqid;
 int shdmemid;
-void *shdememBuffer;
+struct shdmemStructure *shdmemBuffer;
+int n_file;
 
-char memAllPath[100][FILE_PATH_MAX]; // array per memorizzare i path dei file da inviare/ ricevuti
+char memAllPath[FILE_NUMBER_MAX][FILE_PATH_MAX]; // array per memorizzare i path dei file da inviare/ ricevuti
 
-int readDir(const char dirpath[], off_t maxSize, char *match);
+int findFiles(const char dirpath[], off_t maxSize, char *match);
+
+//scrivo un bareMessage nella shared memory
+void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text);
+
+struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait);

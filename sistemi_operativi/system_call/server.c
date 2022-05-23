@@ -13,7 +13,7 @@ void sigHandler(int sig){
         if (msgctl(msqid, IPC_RMID, NULL) == -1)
             errExit("msgctl failed");
 
-        free_shared_memory(shdememBuffer);
+        free_shared_memory(shdmemBuffer);
         remove_shared_memory(shdmemid);
 
         exit(0);
@@ -46,9 +46,12 @@ int main(int argc, char *argv[]) {
         errExit("msgget failled");
 
     //creo shd memory
-    int shdmSize = sizeof(struct bareMessage)*MSG_MAX + sizeof(shdmControl); //alloco spazio per 50 messagi più il vettore di supporto
+    int shdmSize = sizeof(struct shdmemStructure); //alloco spazio per 50 messagi più il vettore di supporto
     shdmemid = alloc_shared_memory(shdmem_k, shdmSize);
-    shdememBuffer = get_shared_memory(shdmemid, 0);
+    shdmemBuffer = (struct shdmemStructure*)get_shared_memory(shdmemid, 0);
+
+    shdmemBuffer->in = 0; //all inizio tutte le celle sono vuote
+    shdmemBuffer->out = 0;
 
     //ora apro le fifo in lettura
     fifo1 = open(fifo1Path, O_RDONLY);
@@ -62,8 +65,15 @@ int main(int argc, char *argv[]) {
         errExit("change signal handler failed");
 
     while(1) {
-        //aspetta numero n di file
+        printf("\nLeggo il numero di n_file da fifo1");
+        char n_fileString[4];
+        if(read(fifo1, n_fileString, sizeof(n_fileString))==-1)
+            errExit("Read failed");
 
+        printf("\nHo letto: %s, invio conferma a client_0\n", n_fileString);
+        fflush(stdout);
+
+        write_in_shdmem(shdmemBuffer, "", "Conferma ricevimento n_file");
     }
 
     return 0;

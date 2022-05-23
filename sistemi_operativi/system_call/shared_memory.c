@@ -8,8 +8,6 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
-
-
  int alloc_shared_memory(key_t shmKey, size_t size) {
    
     int shmid = shmget(shmKey, size, IPC_CREAT|S_IWUSR|S_IRUSR);
@@ -40,3 +38,4 @@ void remove_shared_memory(int shmid) {
     if(shmctl(shmid, IPC_RMID, NULL) == -1)
       errExit("shmctl remove failled");
 }
+
