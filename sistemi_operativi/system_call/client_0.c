@@ -71,11 +71,11 @@ int main(int argc, char *argv[]) {
     //  ***** SETTO SEGNALI *****
     sigset_t SigSet;
     if (sigfillset(&SigSet) == -1)
-        errExit("filling mySet fail");
+        errExit("filling mySet failed");
     if (sigdelset(&SigSet, SIGINT) == -1)
-        errExit("deleting mySet fail");
+        errExit("deleting mySet failed");
     if (sigdelset(&SigSet, SIGUSR1) == -1)
-        errExit("deleting mySet fail");
+        errExit("deleting mySet failed");
     if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
         errExit("mask fail");
     //setto gli handler
@@ -88,8 +88,11 @@ int main(int argc, char *argv[]) {
     while (1) {
         pause(); //aspetto un segnale
 
-        //blocco segnali
-        if (sigprocmask(SIG_BLOCK, &SigSet, NULL) == -1)
+        //blocco anche INT e USR1
+        sigset_t SigSet2;
+        if (sigfillset(&SigSet2) == -1)
+            errExit("filling mySet fail");
+        if (sigprocmask(SIG_SETMASK, &SigSet2, NULL) == -1)
             errExit("mask fail");
         //cambio directory di lavoro
         char buf[FILE_PATH_MAX];
@@ -122,7 +125,8 @@ int main(int argc, char *argv[]) {
         fflush(stdout);
         //...
 
-        if (sigprocmask(SIG_UNBLOCK, &SigSet, NULL) == -1)
+        //rispristino il ricevimento di INT e USR1
+        if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
             errExit("mask fail");
     }
 

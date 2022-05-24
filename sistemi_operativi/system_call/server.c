@@ -96,8 +96,10 @@ int main(int argc, char *argv[]) {
 
         printf("\nHo letto: %s, invio conferma a client_0\n", n_fileString);
         fflush(stdout);
-
         write_in_shdmem(shdmemBuffer, "", "Conferma ricevimento n_file");
+
+        printf("\nMi metto in ascolto delle parti di file");
+
     }
 
     return 0;
