@@ -35,6 +35,10 @@ int main(int argc, char *argv[]) {
     if(shdmem_k==-1)
         errExit("ftok shdmem failed");
 
+    key_t semShdmem_k = ftok(getenv("HOME"), KEY_SEM_SHDMEM);
+    if(shdmem_k==-1)
+        errExit("ftok semShdmem failed");
+
     //prendo fifo1 creata da server
     sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
     while(access(fifo1Path, F_OK)==-1); //finchè la fifo non è stata creata aspetta
@@ -60,6 +64,9 @@ int main(int argc, char *argv[]) {
     shdmemid = alloc_shared_memory(shdmem_k, 0);
     shdmemBuffer = get_shared_memory(shdmemid, 0);
 
+    semShdmemid = semget(semShdmem_k, 3, S_IRUSR | S_IWUSR);
+    if (semShdmemid == -1)
+        errExit("semget failed");
 
     //  ***** SETTO SEGNALI *****
     sigset_t SigSet;
@@ -102,13 +109,14 @@ int main(int argc, char *argv[]) {
 
         char n_fileString[4];
         sprintf(n_fileString, "%d", n_file); //converto il numero di file in stringa da inviare sulla fifo
-        if(write(fifo1, n_fileString, sizeof(n_fileString))==-1)  //scrivo sulla fifo1 il numero di file
+        if(write(fifo1, n_fileString, strlen(n_fileString)+1)==-1)  //scrivo sulla fifo1 il numero di file
             errExit("Write failed");
 
         printf("\nAttendo conferma ricezione da server");
         struct bareMessage message = read_from_shdmem(shdmemBuffer, 1);
-        if(strncmp("Conferma", message.part, sizeof("Conferma"))==0)
-            printf("Il server conferma!");
+        if(strncmp("Conferma", message.part, strlen("Conferma")-1)==0)
+            printf("\nIl server conferma!");
+
         else
             printf("\nLa conferma ha un testo inaspettato: %s", message.part);
         fflush(stdout);

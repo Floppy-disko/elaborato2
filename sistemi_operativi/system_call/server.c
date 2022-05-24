@@ -37,16 +37,6 @@ int main(int argc, char *argv[]) {
     if(shdmem_k==-1)
         errExit("ftok semShdmem failed");
 
-    //creo fifo1
-    sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
-    if (mkfifo(fifo1Path, S_IWUSR | S_IRUSR) == -1)
-        errExit("mkfifo failed");
-
-    //creo fifo2
-    sprintf(fifo2Path, "%s/%s", getenv("HOME"), PATH_FIFO2);
-    if (mkfifo(fifo2Path, S_IWUSR | S_IRUSR) == -1)
-        errExit("mkfifo failed");
-
     //creo msg queue
     msqid = msgget(msgq_k, IPC_CREAT | S_IRUSR | S_IWUSR);
     if (msqid == -1)
@@ -64,13 +54,23 @@ int main(int argc, char *argv[]) {
     if (semShdmemid == -1)
         errExit("semget failed");
 
-    unsigned short semShdmemInitVal[] = {0, 0, MSG_NUMBER_MAX};
+    unsigned short semShdmemInitVal[] = {1, 0, MSG_NUMBER_MAX};
     union semun arg;
     arg.array = semShdmemInitVal;
 
-    //setta i semafori 0)mutex=0, 1)full=0, 2)empty=50
+    //setta i semafori 0)mutex=1, 1)full=0, 2)empty=50
     if (semctl(semShdmemid, 0, SETALL, arg))
         errExit("semctl SETALL failed");
+
+    //creo fifo1
+    sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
+    if (mkfifo(fifo1Path, S_IWUSR | S_IRUSR) == -1)
+        errExit("mkfifo failed");
+
+    //creo fifo2
+    sprintf(fifo2Path, "%s/%s", getenv("HOME"), PATH_FIFO2);
+    if (mkfifo(fifo2Path, S_IWUSR | S_IRUSR) == -1)
+        errExit("mkfifo failed");
 
     //ora apro le fifo in lettura
     fifo1 = open(fifo1Path, O_RDONLY);
