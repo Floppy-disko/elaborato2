@@ -23,6 +23,17 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    //  ***** SETTO SEGNALI *****
+    sigset_t SigSet;
+    if (sigfillset(&SigSet) == -1)
+        errExit("filling mySet failed");
+    if (sigdelset(&SigSet, SIGINT) == -1)
+        errExit("deleting mySet failed");
+    if (sigdelset(&SigSet, SIGUSR1) == -1)
+        errExit("deleting mySet failed");
+    if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
+        errExit("mask fail");
+
     char newDir[FILE_PATH_MAX];
     strcpy(newDir, argv[1]);
 
@@ -68,16 +79,6 @@ int main(int argc, char *argv[]) {
     if (semShdmemid == -1)
         errExit("semget failed");
 
-    //  ***** SETTO SEGNALI *****
-    sigset_t SigSet;
-    if (sigfillset(&SigSet) == -1)
-        errExit("filling mySet failed");
-    if (sigdelset(&SigSet, SIGINT) == -1)
-        errExit("deleting mySet failed");
-    if (sigdelset(&SigSet, SIGUSR1) == -1)
-        errExit("deleting mySet failed");
-    if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
-        errExit("mask fail");
     //setto gli handler
     if (signal(SIGINT, sigHandler) == SIG_ERR)
         errExit("change signal handler failed");

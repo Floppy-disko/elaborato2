@@ -3,6 +3,8 @@
 
 #include "defines.h"
 
+int partsReceived;
+
 void sigHandler(int sig){
     if(sig==SIGINT){     //chiudo ed elimino le ipc
         if(close(fifo1)==-1 || close(fifo2)==-1)
@@ -94,11 +96,19 @@ int main(int argc, char *argv[]) {
                 errExit("Read failed");
         } while(br==0);
 
+        n_file = atoi(n_fileString);
+
         printf("\nHo letto: %s, invio conferma a client_0\n", n_fileString);
         fflush(stdout);
         write_in_shdmem(shdmemBuffer, "", "Conferma ricevimento n_file");
 
         printf("\nMi metto in ascolto delle parti di file");
+
+        struct bareMessage messages[4][n_file];
+        for(int i=0; i<4; i++){  //inizializzo i pid di messsages a 0, finchè il pid è a 0 la cella è vuota
+            for(int j=0; i<n_file; i++)
+                messages[i][j].pid=0;
+        }
 
     }
 
