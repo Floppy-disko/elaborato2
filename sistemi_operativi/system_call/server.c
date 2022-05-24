@@ -86,8 +86,13 @@ int main(int argc, char *argv[]) {
     while(1) {
         printf("\nLeggo il numero di n_file da fifo1");
         char n_fileString[4];
-        if(read(fifo1, n_fileString, sizeof(n_fileString))==-1)
-            errExit("Read failed");
+        int br;
+
+        do {  //provo a leggere finchè non trovo qualcosa di diverso dal carattere terminatore
+            br = read(fifo1, n_fileString, sizeof(n_fileString));
+            if (br == -1)
+                errExit("Read failed");
+        } while(br==0);
 
         printf("\nHo letto: %s, invio conferma a client_0\n", n_fileString);
         fflush(stdout);
