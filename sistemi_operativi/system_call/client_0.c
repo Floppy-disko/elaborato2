@@ -126,6 +126,34 @@ int main(int argc, char *argv[]) {
         fflush(stdout);
         //...
 
+      //creo n_file processi figli
+      for(int child=0; child<n_file; child++){
+        pid_t pid = fork();
+        if(pid == -1)
+          errExit("fork failed\n");
+
+        //processo figlio
+        if(pid == 0){
+          //apro il file
+          int fdFile = open(memAllPath[child], O_RDONLY);
+          if(fdFile == -1)
+            errExit("open file failed");
+
+          //determino la dimensione
+          struct stat statbuf;
+          fstat(fd, statbuf);
+          off_t sizeFile = statbuf.st_size;
+
+          char S1[sizeFile+1] = "";
+          char S2[sizeFile+1] = "";
+          char S3[sizeFile+1] = "";
+          char S4[sizeFile+1] = "";
+
+          lseek(fd, 0, SEEK_SET);
+          
+        }
+      }
+
         //rispristino il ricevimento di INT e USR1
         if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
             errExit("mask fail");
