@@ -126,32 +126,53 @@ int main(int argc, char *argv[]) {
         fflush(stdout);
         //...
 
-      //creo n_file processi figli
-      for(int child=0; child<n_file; child++){
-        pid_t pid = fork();
-        if(pid == -1)
-          errExit("fork failed\n");
+        //creo semaforo per gestire figli
+        int semChilds = semget(IPC_PRIVATE, 1, S_IRUSR | S_IWUSR | IPC_CREAT);
+        union semun arg;
+        arg.array = 0;
+        if(semctl(semChildId, 50, SETALL, arg) == -1)
+          errExit("set semaphore fail\n");
 
-        //processo figlio
-        if(pid == 0){
-          //apro il file
-          int fdFile = open(memAllPath[child], O_RDONLY);
-          if(fdFile == -1)
-            errExit("open file failed");
+        //creo n_file processi figli
+        for(int child=0; child<n_file; child++){
+          pid_t pid = fork();
+          if(pid == -1)
+            errExit("fork failed\n");
+  
+          //processo figlio
+          if(pid == 0){
+            //apro il file
+            int fdFile = open(memAllPath[child], O_RDONLY);
+            if(fdFile == -1)
+              errExit("open file failed");
+  
+            //determino la dimensione
+            struct stat statbuf;
+            if(fstat(fdFile, &statbuf) == -1)
+              errExit("fstat file failed");
+            
+            off_t fileSize = statbuf.st_size;
+  
+            //creo i 4 messaggi in cui il file deve essere inviato
+            struct bareMessage[4] messages;
+            for(int i=0; i<4; i++){
+              messages[i] = {.pid = getpid()};
+              strcpy(messages[i].path, memAllPath[child]);
+            }
+  
+            off_t current = lseek(fdFile, 0, SEEK_SET);
+            if(current==-1)
+              errExit("lseek failed");
 
-          //determino la dimensione
-          struct stat statbuf;
-          fstat(fd, statbuf);
-          off_t sizeFile = statbuf.st_size;
+            off_t charsNumber = fileSize/4 + (fileSize % 4 != 0); //le divisioni tra positivi arrotondano a -inf, quindi visto che voglio arrotondare a +inf se il numero non è divisibile per 4 devo aggiungere 1 al risultato
 
-          char S1[sizeFile+1] = "";
-          char S2[sizeFile+1] = "";
-          char S3[sizeFile+1] = "";
-          char S4[sizeFile+1] = "";
-
-          lseek(fd, 0, SEEK_SET);
+            for(int i=0; i<4; i++){
+              if(read(fdFile, messages[i].part, sizeof(char)*charsNumber)==-1)
+                errExit("reading files faild");
+            }
+            
+          }
           
-        }
       }
 
         //rispristino il ricevimento di INT e USR1
