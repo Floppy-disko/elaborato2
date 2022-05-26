@@ -99,3 +99,24 @@ struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait){
     semOp(semShdmemid, 2, 1, 1);
     return messageCopy;
 }
+
+void msgQueueSend(int msqid, struct bareMessage message){
+
+  struct mymsg send;
+  send.mtype = BAREM;
+
+  send.message = message;
+
+  if(msgsnd(msqid, &send, sizeof(struct mymsg)-sizeof(long), 0))// meglio con flag=IPC_NOWAIT?
+    errExit("msgsnd failed\n");
+}
+
+struct bareMessage msgQueueRead(int msqid){
+
+  struct mymsg message;
+  
+  if(msgrcv(msqid, &message, sizeof(struct mymsg)-sizeof(long), BAREM, 0) == -1)
+      errExit("msgrcv failed\n");
+
+  return message.message;
+}

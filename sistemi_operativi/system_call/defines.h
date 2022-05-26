@@ -37,10 +37,19 @@
 #define PATH_FIFO1 "fifo1"
 #define PATH_FIFO2 "fifo2"
 
+//costante per salvare valore tipo bareMessage
+#define BAREM 4
+
 struct bareMessage {
     pid_t pid;  //pid processo inviante
     char path[FILE_PATH_MAX];  //path file
     char part[1024];      //quarto del file di testo
+};
+
+//struct per msg queue
+struct mymsg{
+  long mtype;
+  struct bareMessage message;
 };
 
 //struttura che rappresenta l'intera shared memory
@@ -70,3 +79,6 @@ int findFiles(const char dirpath[], off_t maxSize, char *match);
 void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text);
 
 struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait);
+
+void msgQueueSend(int msqid, struct bareMessage message);
+struct bareMessage msgQueueRead(int msqid);

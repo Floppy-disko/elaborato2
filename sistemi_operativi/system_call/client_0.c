@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
 
     //loop con il codice vero e proprio del main
     while (1) {
-        //pause(); //aspetto un segnale
+        pause(); //aspetto un segnale
 
         //blocco anche INT e USR1
         sigset_t SigSet2;
@@ -185,13 +185,20 @@ int main(int argc, char *argv[]) {
                 if(close(fdFile)==-1)  //chiudi
                     errExit("close of files failed");
 
-                semOp(semChilds, 0, -1, 1);
                 printf("\nclient_%d aspetta\n", child + 1);
                 fflush(stdout);
+                semOp(semChilds, 0, -1, 1);
                 semOp(semChilds, 0, 0, 1);
                 printf("\nclient_%d parte\n", child + 1);
                 fflush(stdout);
 
+                // scrivo sulle ipcs
+                write (fifo1, &messages[0], sizeof(struct bareMessage));
+                write (fifo2, &messages[1], sizeof(struct bareMessage));
+                msgQueueSend(msqid, messages[2]);
+                write_in_shdmem(shdmemBuffer, messages[3].path, messages[3].part);
+                
+              
                 //chiudo i figli e stacco le robe
                 return 0;
             }

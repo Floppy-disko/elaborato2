@@ -103,8 +103,6 @@ int main(int argc, char *argv[]) {
         write_in_shdmem(shdmemBuffer, "", "Conferma ricevimento n_file");
 
         printf("\nMi metto in ascolto delle parti di file");
-
-
     }
 
     return 0;
