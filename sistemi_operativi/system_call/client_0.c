@@ -3,12 +3,18 @@
 
 #include "defines.h"
 
+int semChilds;  //semaforo per coordinare i figli
+
 void sigHandler(int sig) { //serve solo per interrompere la pause
-    if(sig==SIGUSR1) {
-        if(close(fifo1)==-1 || close(fifo2)==-1)
+    if (sig == SIGUSR1) {
+        if (close(fifo1) == -1 || close(fifo2) == -1)
             errExit("Closing fifos FDs failed");
 
         free_shared_memory(shdmemBuffer);
+
+        if (semctl(semChilds, 0, IPC_RMID) == -1)
+            errExit("semctl IPC_RMID failed");
+
         exit(0);
     }
 }
@@ -40,19 +46,19 @@ int main(int argc, char *argv[]) {
     //lato client apertura di fifo, mssgqueue, shared memory...VA FATTA DAI CHILD?
 
     key_t msgq_k = ftok(getenv("HOME"), KEY_MSGQ);
-    if(msgq_k==-1)
+    if (msgq_k == -1)
         errExit("ftok msgq failed");
     key_t shdmem_k = ftok(getenv("HOME"), KEY_SHDMEM);
-    if(shdmem_k==-1)
+    if (shdmem_k == -1)
         errExit("ftok shdmem failed");
 
     key_t semShdmem_k = ftok(getenv("HOME"), KEY_SEM_SHDMEM);
-    if(shdmem_k==-1)
+    if (shdmem_k == -1)
         errExit("ftok semShdmem failed");
 
     //prendo fifo1 creata da server
     sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
-    while(access(fifo1Path, F_OK)==-1); //finchè la fifo non è stata creata aspetta
+    while (access(fifo1Path, F_OK) == -1); //finchè la fifo non è stata creata aspetta
 
     fifo1 = open(fifo1Path, O_WRONLY);
     if (fifo1 == -1)
@@ -60,7 +66,7 @@ int main(int argc, char *argv[]) {
 
     //prendo fifo2 creata da server
     sprintf(fifo2Path, "%s/%s", getenv("HOME"), PATH_FIFO2);
-    while(access(fifo2Path, F_OK)==-1);
+    while (access(fifo2Path, F_OK) == -1);
 
     fifo2 = open(fifo2Path, O_WRONLY);
     if (fifo2 == -1)
@@ -79,6 +85,11 @@ int main(int argc, char *argv[]) {
     if (semShdmemid == -1)
         errExit("semget failed");
 
+    //creo semaforo per gestire figli
+    semChilds = semget(IPC_PRIVATE, 1, S_IRUSR | S_IWUSR | IPC_CREAT);
+    if(semChilds == -1)
+        errExit("semget failed");
+
     //setto gli handler
     if (signal(SIGINT, sigHandler) == SIG_ERR)
         errExit("change signal handler failed");
@@ -87,7 +98,7 @@ int main(int argc, char *argv[]) {
 
     //loop con il codice vero e proprio del main
     while (1) {
-        pause(); //aspetto un segnale
+        //pause(); //aspetto un segnale
 
         //blocco anche INT e USR1
         sigset_t SigSet2;
@@ -113,12 +124,12 @@ int main(int argc, char *argv[]) {
 
         char n_fileString[4];
         sprintf(n_fileString, "%d", n_file); //converto il numero di file in stringa da inviare sulla fifo
-        if(write(fifo1, n_fileString, strlen(n_fileString)+1)==-1)  //scrivo sulla fifo1 il numero di file
+        if (write(fifo1, n_fileString, strlen(n_fileString) + 1) == -1)  //scrivo sulla fifo1 il numero di file
             errExit("Write failed");
 
         printf("\nAttendo conferma ricezione da server");
         struct bareMessage message = read_from_shdmem(shdmemBuffer, 1);
-        if(strncmp("Conferma", message.part, strlen("Conferma")-1)==0)
+        if (strncmp("Conferma", message.part, strlen("Conferma") - 1) == 0)
             printf("\nIl server conferma!");
 
         else
@@ -126,56 +137,67 @@ int main(int argc, char *argv[]) {
         fflush(stdout);
         //...
 
-        //creo semaforo per gestire figli
-        int semChilds = semget(IPC_PRIVATE, 1, S_IRUSR | S_IWUSR | IPC_CREAT);
+        //inizializzo il semaforo al numero di file = numero figli
         union semun arg;
-        arg.array = 0;
-        if(semctl(semChildId, 50, SETALL, arg) == -1)
-          errExit("set semaphore fail\n");
+        arg.val = n_file;
+        if (semctl(semChilds, 0, SETVAL, arg) == -1)
+            errExit("set semaphore fail\n");
 
         //creo n_file processi figli
-        for(int child=0; child<n_file; child++){
-          pid_t pid = fork();
-          if(pid == -1)
-            errExit("fork failed\n");
-  
-          //processo figlio
-          if(pid == 0){
-            //apro il file
-            int fdFile = open(memAllPath[child], O_RDONLY);
-            if(fdFile == -1)
-              errExit("open file failed");
-  
-            //determino la dimensione
-            struct stat statbuf;
-            if(fstat(fdFile, &statbuf) == -1)
-              errExit("fstat file failed");
-            
-            off_t fileSize = statbuf.st_size;
-  
-            //creo i 4 messaggi in cui il file deve essere inviato
-            struct bareMessage[4] messages;
-            for(int i=0; i<4; i++){
-              messages[i] = {.pid = getpid()};
-              strcpy(messages[i].path, memAllPath[child]);
+        for (int child = 0; child < n_file; child++) {
+            pid_t pid = fork();
+            if (pid == -1)
+                errExit("fork failed\n");
+
+            //processo figlio
+            if (pid == 0) {
+                //apro il file
+                int fdFile = open(memAllPath[child], O_RDONLY);
+                if (fdFile == -1)
+                    errExit("open file failed");
+
+                //determino la dimensione
+                struct stat statbuf;
+                if (fstat(fdFile, &statbuf) == -1)
+                    errExit("fstat file failed");
+
+                off_t fileSize = statbuf.st_size;
+
+                //creo i 4 messaggi in cui il file deve essere inviato
+                struct bareMessage messages[4];
+                for (int i = 0; i < 4; i++) {
+                    messages[i].pid = getpid();
+                    strcpy(messages[i].path, memAllPath[child]);
+                }
+
+                off_t current = lseek(fdFile, 0, SEEK_SET);
+                if (current == -1)
+                    errExit("lseek failed");
+
+                off_t charsNumber = fileSize / 4 + (fileSize % 4 !=
+                                                    0); //le divisioni tra positivi arrotondano a -inf, quindi visto che voglio arrotondare a +inf se il numero non è divisibile per 4 devo aggiungere 1 al risultato
+
+                for (int i = 0; i < 4; i++) {
+                    if (read(fdFile, messages[i].part, sizeof(char) * charsNumber) == -1)
+                        errExit("reading files faild");
+                }
+
+                if(close(fdFile)==-1)  //chiudi
+                    errExit("close of files failed");
+
+                semOp(semChilds, 0, -1, 1);
+                printf("\nclient_%d aspetta\n", child + 1);
+                fflush(stdout);
+                semOp(semChilds, 0, 0, 1);
+                printf("\nclient_%d parte\n", child + 1);
+                fflush(stdout);
+
+                //chiudo i figli e stacco le robe
+                return 0;
             }
-  
-            off_t current = lseek(fdFile, 0, SEEK_SET);
-            if(current==-1)
-              errExit("lseek failed");
+        }
 
-            off_t charsNumber = fileSize/4 + (fileSize % 4 != 0); //le divisioni tra positivi arrotondano a -inf, quindi visto che voglio arrotondare a +inf se il numero non è divisibile per 4 devo aggiungere 1 al risultato
-
-            for(int i=0; i<4; i++){
-              if(read(fdFile, messages[i].part, sizeof(char)*charsNumber)==-1)
-                errExit("reading files faild");
-            }
-            
-          }
-          
-      }
-
-        //rispristino il ricevimento di INT e USR1
+        //rispristino il ricevimento di INT e USR1 da parte di client_0
         if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
             errExit("mask fail");
     }

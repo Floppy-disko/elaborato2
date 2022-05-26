@@ -104,11 +104,6 @@ int main(int argc, char *argv[]) {
 
         printf("\nMi metto in ascolto delle parti di file");
 
-        struct bareMessage messages[4][n_file];
-        for(int i=0; i<4; i++){  //inizializzo i pid di messsages a 0, finchè il pid è a 0 la cella è vuota
-            for(int j=0; i<n_file; i++)
-                messages[i][j].pid=0;
-        }
 
     }
 
