@@ -74,7 +74,7 @@ void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text)
 }
 
 ///@param wait a 1 se la lettura è bloccante, a 0 se la lettura non è bloccante
-//TODO non so se gli strcpy funzionino come penso
+//TODO modifica il modo che gli passi il puntatore a bareMessage e ritorni -1 se wait=0 e devo aspettare
 struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait){
     struct bareMessage messageCopy;
 
@@ -100,6 +100,8 @@ struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait){
     return messageCopy;
 }
 
+//TODO usa semafori per fare in modo che massimo 50 messaggi siano nelle fifo e nella msgq
+
 void msgQueueSend(int msqid, struct bareMessage message){
 
   struct mymsg send;
@@ -107,16 +109,23 @@ void msgQueueSend(int msqid, struct bareMessage message){
 
   send.message = message;
 
-  if(msgsnd(msqid, &send, sizeof(struct mymsg)-sizeof(long), 0))// meglio con flag=IPC_NOWAIT?
+  if(msgsnd(msqid, &send, sizeof(struct mymsg)-sizeof(long), 0))
     errExit("msgsnd failed\n");
 }
 
-struct bareMessage msgQueueRead(int msqid){
+int msgQueueReceive(int msqid, struct bareMessage *dest,int wait){
 
   struct mymsg message;
-  
-  if(msgrcv(msqid, &message, sizeof(struct mymsg)-sizeof(long), BAREM, 0) == -1)
-      errExit("msgrcv failed\n");
 
-  return message.message;
+  errno=0;
+  if(msgrcv(msqid, &message, sizeof(struct mymsg)-sizeof(long), BAREM, ((wait)? 0 : IPC_NOWAIT)) == -1) {
+      if (errno == ENOMSG)
+          return -1;
+      else
+          errExit("msgrcv failed");
+  }
+
+  *dest = message.message;
+
+  return 0;
 }

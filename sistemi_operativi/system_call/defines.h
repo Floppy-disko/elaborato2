@@ -81,4 +81,4 @@ void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text)
 struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait);
 
 void msgQueueSend(int msqid, struct bareMessage message);
-struct bareMessage msgQueueRead(int msqid);
+int msgQueueReceive(int msqid, struct bareMessage *dest, int wait);

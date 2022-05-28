@@ -197,7 +197,7 @@ int main(int argc, char *argv[]) {
                 write (fifo2, &messages[1], sizeof(struct bareMessage));
                 msgQueueSend(msqid, messages[2]);
                 write_in_shdmem(shdmemBuffer, messages[3].path, messages[3].part);
-                
+
                 //chiudo i figli e stacco le robe
                 return 0;
             }

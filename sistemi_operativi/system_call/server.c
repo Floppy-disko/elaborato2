@@ -3,7 +3,52 @@
 
 #include "defines.h"
 
-int partsReceived;
+//ristorna 0 per non ricevute tutte e 1 per ricevute tutte
+int allPartsReceived(int indexes[]){
+    for(int i=0; i<n_file; i++)
+        if(indexes[i]<n_file)  //se anche solo un ipc non ha ricevuto tutte le parti ritorna 0
+            return 0;
+
+    return 1;
+}
+
+void try_fifo1(struct bareMessage messages[], int indexes[]){
+    errno=0;  //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
+    int br = read(fifo1, &messages[indexes[0]], sizeof(struct bareMessage));
+    if(br==-1) {
+        if (errno == EAGAIN)  //non ho errori è solo vuota
+           return;
+
+        else
+            errExit("Nonblocking read fifo1 failed");
+    }
+
+    indexes[0]++;  //se ho letto un messaggio incremento index di 1
+
+}
+
+void try_fifo2(struct bareMessage messages[], int indexes[]){
+    errno=0;  //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
+    int br = read(fifo1, &messages[indexes[1]], sizeof(struct bareMessage));
+    if(br==-1) {
+        if (errno != EAGAIN)
+            errExit("Nonblocking read fifo1 failed");
+
+        else  //se errno==EAGAIN
+            return;
+    }
+
+    indexes[1]++;  //se ho letto un messaggio incremento index di 1
+}
+
+void try_msgq(struct bareMessage messages[], int indexes[]){
+    if(msgQueueReceive(msqid, &messages[indexes[2]], 0)==0)
+        indexes[2]++;
+}
+
+void try_shdmem(struct bareMessage messages[], int indexes[]){
+    messages[indexes[3]] = read_from_shdmem(shdmemBuffer, 0);
+}
 
 void sigHandler(int sig){
     if(sig==SIGINT){     //chiudo ed elimino le ipc
@@ -103,6 +148,16 @@ int main(int argc, char *argv[]) {
         write_in_shdmem(shdmemBuffer, "", "Conferma ricevimento n_file");
 
         printf("\nMi metto in ascolto delle parti di file");
+
+        struct bareMessage messages[4][n_file];
+        int indexes[4]={0};  //inizializzati a 0
+
+        while(!allPartsReceived(indexes)){
+            try_fifo1(messages[0], indexes);
+            try_fifo2(messages[0], indexes);
+            try_msgq(messages[0], indexes);
+            try_shdmem(messages[0], indexes);
+        }
     }
 
     return 0;
