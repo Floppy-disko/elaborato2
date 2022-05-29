@@ -34,6 +34,7 @@
 #define KEY_MSGQ 'A'
 #define KEY_SHDMEM 'B'
 #define KEY_SEM_SHDMEM 'C'
+#define KEY_SEM_MESSAGES 'D'
 #define PATH_FIFO1 "fifo1"
 #define PATH_FIFO2 "fifo2"
 
@@ -67,7 +68,8 @@ char fifo2Path[FILE_PATH_MAX];
 int msqid;
 int shdmemid;
 struct shdmemStructure *shdmemBuffer;
-int semShdmemid;
+int semShdmemid;  //3 semafori per gestire la msgq come memoria circolare
+int semMessages; //3 semafori per fare in modo di avere max 50 messaggi su fifo1, fifo2 e msgq
 
 int n_file; //variabile modificata da findFiles
 
@@ -75,10 +77,13 @@ char memAllPath[FILE_NUMBER_MAX][FILE_PATH_MAX]; // array per memorizzare i path
 
 int findFiles(const char dirpath[], off_t maxSize, char *match);
 
+void write_fifo1(struct bareMessage *message);
+void write_fifo2(struct bareMessage *message);
+
+void msgQueueSend(struct bareMessage message);
+int msgQueueReceive(struct bareMessage *dest, int wait);
+
 //scrivo un bareMessage nella shared memory
 void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text);
 
-struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait);
-
-void msgQueueSend(int msqid, struct bareMessage message);
-int msgQueueReceive(int msqid, struct bareMessage *dest, int wait);
+int read_from_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *dest, int wait);

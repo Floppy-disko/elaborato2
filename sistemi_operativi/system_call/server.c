@@ -5,7 +5,7 @@
 
 //ristorna 0 per non ricevute tutte e 1 per ricevute tutte
 int allPartsReceived(int indexes[]){
-    for(int i=0; i<n_file; i++)
+    for(int i=0; i<4; i++)
         if(indexes[i]<n_file)  //se anche solo un ipc non ha ricevuto tutte le parti ritorna 0
             return 0;
 
@@ -23,31 +23,34 @@ void try_fifo1(struct bareMessage messages[], int indexes[]){
             errExit("Nonblocking read fifo1 failed");
     }
 
+    semOp(semMessages, 0, 1, 1);
     indexes[0]++;  //se ho letto un messaggio incremento index di 1
 
 }
 
 void try_fifo2(struct bareMessage messages[], int indexes[]){
     errno=0;  //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
-    int br = read(fifo1, &messages[indexes[1]], sizeof(struct bareMessage));
+    int br = read(fifo2, &messages[indexes[1]], sizeof(struct bareMessage));
     if(br==-1) {
-        if (errno != EAGAIN)
-            errExit("Nonblocking read fifo1 failed");
-
-        else  //se errno==EAGAIN
+        if (errno == EAGAIN)  //non ho errori è solo vuota
             return;
+
+        else
+            errExit("Nonblocking read fifo1 failed");
     }
 
+    semOp(semMessages, 1, 1, 1);
     indexes[1]++;  //se ho letto un messaggio incremento index di 1
 }
 
 void try_msgq(struct bareMessage messages[], int indexes[]){
-    if(msgQueueReceive(msqid, &messages[indexes[2]], 0)==0)
+    if(msgQueueReceive(&messages[indexes[2]], 0) == 0)
         indexes[2]++;
 }
 
 void try_shdmem(struct bareMessage messages[], int indexes[]){
-    messages[indexes[3]] = read_from_shdmem(shdmemBuffer, 0);
+    if(read_from_shdmem(shdmemBuffer, &messages[indexes[3]], 0) == 0)
+        indexes[3]++;
 }
 
 void sigHandler(int sig){
@@ -62,6 +65,9 @@ void sigHandler(int sig){
 
         free_shared_memory(shdmemBuffer);
         remove_shared_memory(shdmemid);
+
+        if (semctl(semMessages, 0, IPC_RMID) == -1)
+            errExit("semctl IPC_RMID failed");
 
         if (semctl(semShdmemid, 0, IPC_RMID) == -1)
             errExit("semctl IPC_RMID failed");
@@ -81,6 +87,10 @@ int main(int argc, char *argv[]) {
         errExit("ftok shdmem failed");
 
     key_t semShdmem_k = ftok(getenv("HOME"), KEY_SEM_SHDMEM);
+    if(shdmem_k==-1)
+        errExit("ftok semShdmem failed");
+
+    key_t semMessages_k = ftok(getenv("HOME"), KEY_SEM_MESSAGES);
     if(shdmem_k==-1)
         errExit("ftok semShdmem failed");
 
@@ -107,6 +117,16 @@ int main(int argc, char *argv[]) {
 
     //setta i semafori 0)mutex=1, 1)full=0, 2)empty=50
     if (semctl(semShdmemid, 0, SETALL, arg))
+        errExit("semctl SETALL failed");
+
+    semMessages = semget(semMessages_k, 3, S_IRUSR | S_IWUSR | IPC_CREAT);
+    if (semShdmemid == -1)
+        errExit("semget failed");
+
+    unsigned short semMessagesInitVal[] = {MSG_NUMBER_MAX, MSG_NUMBER_MAX, MSG_NUMBER_MAX};  //max 50 messaggi per ogni ipc
+    arg.array = semMessagesInitVal;
+
+    if (semctl(semMessages, 0, SETALL, arg))
         errExit("semctl SETALL failed");
 
     //creo fifo1
@@ -154,10 +174,18 @@ int main(int argc, char *argv[]) {
 
         while(!allPartsReceived(indexes)){
             try_fifo1(messages[0], indexes);
-            try_fifo2(messages[0], indexes);
-            try_msgq(messages[0], indexes);
-            try_shdmem(messages[0], indexes);
+            try_fifo2(messages[1], indexes);
+            try_msgq(messages[2], indexes);
+            try_shdmem(messages[3], indexes);
         }
+
+        for(int i=0; i<n_file; i++) {
+            printf("\nfile %s:\n", messages[0][i].path);
+            for (int j = 0; j < 4; j++) {
+                printf("%s,", messages[j][i].part);
+            }
+        }
+
     }
 
     return 0;

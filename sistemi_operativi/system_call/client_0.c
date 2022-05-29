@@ -56,6 +56,10 @@ int main(int argc, char *argv[]) {
     if (shdmem_k == -1)
         errExit("ftok semShdmem failed");
 
+    key_t semMessages_k = ftok(getenv("HOME"), KEY_SEM_MESSAGES);
+    if(shdmem_k==-1)
+        errExit("ftok semShdmem failed");
+
     //prendo fifo1 creata da server
     sprintf(fifo1Path, "%s/%s", getenv("HOME"), PATH_FIFO1);  //concateno il nome del file alla cartella home
     while (access(fifo1Path, F_OK) == -1); //finchè la fifo non è stata creata aspetta
@@ -82,6 +86,10 @@ int main(int argc, char *argv[]) {
     shdmemBuffer = get_shared_memory(shdmemid, 0);
 
     semShdmemid = semget(semShdmem_k, 3, S_IRUSR | S_IWUSR);
+    if (semShdmemid == -1)
+        errExit("semget failed");
+
+    semMessages = semget(semMessages_k, 3, S_IRUSR | S_IWUSR);
     if (semShdmemid == -1)
         errExit("semget failed");
 
@@ -128,14 +136,14 @@ int main(int argc, char *argv[]) {
             errExit("Write failed");
 
         printf("\nAttendo conferma ricezione da server");
-        struct bareMessage message = read_from_shdmem(shdmemBuffer, 1);
-        if (strncmp("Conferma", message.part, strlen("Conferma") - 1) == 0)
+        struct bareMessage message;
+        read_from_shdmem(shdmemBuffer, &message, 1);
+        if (strncmp("Conferma", message.part, strlen("Conferma")) == 0)
             printf("\nIl server conferma!");
 
         else
             printf("\nLa conferma ha un testo inaspettato: %s", message.part);
         fflush(stdout);
-        //...
 
         //inizializzo il semaforo al numero di file = numero figli
         union semun arg;
@@ -161,7 +169,7 @@ int main(int argc, char *argv[]) {
                 if (fstat(fdFile, &statbuf) == -1)
                     errExit("fstat file failed");
 
-                off_t fileSize = statbuf.st_size;
+                off_t fileSize = statbuf.st_size-1;  //col -1 tolgo il newline di ogni file
 
                 //creo i 4 messaggi in cui il file deve essere inviato
                 struct bareMessage messages[4];
@@ -174,12 +182,19 @@ int main(int argc, char *argv[]) {
                 if (current == -1)
                     errExit("lseek failed");
 
-                off_t charsNumber = fileSize / 4 + (fileSize % 4 !=
-                                                    0); //le divisioni tra positivi arrotondano a -inf, quindi visto che voglio arrotondare a +inf se il numero non è divisibile per 4 devo aggiungere 1 al risultato
+                off_t charsNumber = fileSize / 4 + (fileSize % 4 !=0); //le divisioni tra positivi arrotondano a -inf, quindi visto che voglio arrotondare a +inf se il numero non è divisibile per 4 devo aggiungere 1 al risultato
 
-                for (int i = 0; i < 4; i++) {
-                    if (read(fdFile, messages[i].part, sizeof(char) * charsNumber) == -1)
-                        errExit("reading files faild");
+                printf("\nfile %s, size %d, charsNumber %d", memAllPath[child], fileSize, charsNumber);
+
+                for (int i = 0, bLeft=fileSize, br=0; i < 4; i++) {
+
+                    //per evitare di leggere il new line che ha ogni file prendo il numero minore
+                    br = read(fdFile, messages[i].part, sizeof(char) * (charsNumber < bLeft)? charsNumber: bLeft);
+                    if (br == -1)
+                        errExit("reading files failed");
+                    bLeft-=br;
+
+                    messages[i].part[br]='\0';  //appendo il terminatore alla fine di quello che ho copiato
                 }
 
                 if(close(fdFile)==-1)  //chiudi
@@ -193,9 +208,9 @@ int main(int argc, char *argv[]) {
                 fflush(stdout);
 
                 // scrivo sulle ipcs
-                write (fifo1, &messages[0], sizeof(struct bareMessage));
-                write (fifo2, &messages[1], sizeof(struct bareMessage));
-                msgQueueSend(msqid, messages[2]);
+                write_fifo1(&messages[0]);
+                write_fifo2(&messages[1]);
+                msgQueueSend(messages[2]);
                 write_in_shdmem(shdmemBuffer, messages[3].path, messages[3].part);
 
                 //chiudo i figli e stacco le robe

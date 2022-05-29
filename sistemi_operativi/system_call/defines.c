@@ -52,6 +52,49 @@ int findFiles(const char dirpath[], off_t maxSize, char *match) {
     return n_file;
 }
 
+//TODO usa semafori per fare in modo che massimo 50 messaggi siano nelle fifo e nella msgq
+void write_fifo1(struct bareMessage *message){
+    semOp(semMessages, 0, -1, 1);
+    if(write (fifo1, message, sizeof(struct bareMessage)) == -1);
+}
+
+void write_fifo2(struct bareMessage *message){
+    semOp(semMessages, 1, -1, 1);
+    if(write (fifo2, message, sizeof(struct bareMessage)) == -1);
+}
+
+void msgQueueSend(struct bareMessage message){
+
+  struct mymsg send;
+  send.mtype = BAREM;
+
+  send.message = message;
+
+  semOp(semMessages, 2, -1, 1);  //per limitare il massimo numero di messaggi contemporanei a 50
+
+  if(msgsnd(msqid, &send, sizeof(struct mymsg)-sizeof(long), 0))
+    errExit("msgsnd failed\n");
+}
+
+int msgQueueReceive(struct bareMessage *dest, int wait){
+
+  struct mymsg message;
+
+  errno=0;
+  if(msgrcv(msqid, &message, sizeof(struct mymsg)-sizeof(long), BAREM, ((wait)? 0 : IPC_NOWAIT)) == -1) {
+      if (errno == ENOMSG)
+          return -1;
+      else
+          errExit("msgrcv failed");
+  }
+
+  semOp(semMessages, 2, 1, 1); //informo che un messaggio è stato tolto dalla coda messaggi
+
+  *dest = message.message;
+
+  return 0;
+}
+
 ///@param ptr_sh puntatore alla shared memory strutturata
 ///@param filePath path del file di cui invio un quarto
 ///@param text testo da scrivere nel bare message
@@ -75,57 +118,19 @@ void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text)
 
 ///@param wait a 1 se la lettura è bloccante, a 0 se la lettura non è bloccante
 //TODO modifica il modo che gli passi il puntatore a bareMessage e ritorni -1 se wait=0 e devo aspettare
-struct bareMessage read_from_shdmem(struct shdmemStructure *ptr_sh, int wait){
-    struct bareMessage messageCopy;
+int read_from_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *dest, int wait){
 
     errno=0;
-    semOp(semShdmemid, 1, -1, wait);  //vedo se c'è qualcosa da leggere
-    if(wait==0 && errno==EAGAIN) {  //se non ho niente da leggere supero il semforo full con errore EAGAIN
-        printf("\nNon ho niente da leggere");
-        messageCopy.pid=-1;
-        return messageCopy;
-    }
+    if(semOp(semShdmemid, 1, -1, wait) == -1)  //vedo se c'è qualcosa da leggere, sennò ritorna -1
+        return -1;
 
     semOp(semShdmemid, 0, -1, 1);
 
-    //prendo il messaggio della prima cella piena nel buffer circolare e la copio in messageCopy
-    struct bareMessage message = ptr_sh->messages[ptr_sh->out];
-    messageCopy.pid = message.pid;
-    strcpy(messageCopy.path, message.path);
-    strcpy(messageCopy.part, message.part);
+    //copio il messaggio in indice out nella destinazione dest
+    *dest = ptr_sh->messages[ptr_sh->out];
     ptr_sh->out = (ptr_sh->out + 1) % MSG_NUMBER_MAX;
 
     semOp(semShdmemid, 0, 1, 1);
     semOp(semShdmemid, 2, 1, 1);
-    return messageCopy;
-}
-
-//TODO usa semafori per fare in modo che massimo 50 messaggi siano nelle fifo e nella msgq
-
-void msgQueueSend(int msqid, struct bareMessage message){
-
-  struct mymsg send;
-  send.mtype = BAREM;
-
-  send.message = message;
-
-  if(msgsnd(msqid, &send, sizeof(struct mymsg)-sizeof(long), 0))
-    errExit("msgsnd failed\n");
-}
-
-int msgQueueReceive(int msqid, struct bareMessage *dest,int wait){
-
-  struct mymsg message;
-
-  errno=0;
-  if(msgrcv(msqid, &message, sizeof(struct mymsg)-sizeof(long), BAREM, ((wait)? 0 : IPC_NOWAIT)) == -1) {
-      if (errno == ENOMSG)
-          return -1;
-      else
-          errExit("msgrcv failed");
-  }
-
-  *dest = message.message;
-
-  return 0;
+    return 0;
 }

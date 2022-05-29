@@ -10,4 +10,4 @@ union semun {
     unsigned short *array;
 };
 
-void semOp (int semid, unsigned short sem_num, short sem_op, int wait);
+int semOp (int semid, unsigned short sem_num, short sem_op, int wait);
