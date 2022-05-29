@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
                 for (int i = 0, bLeft=fileSize, br=0; i < 4; i++) {
 
                     //per evitare di leggere il new line che ha ogni file prendo il numero minore
-                    br = read(fdFile, messages[i].part, sizeof(char) * (charsNumber < bLeft)? charsNumber: bLeft);
+                    br = read(fdFile, messages[i].part, sizeof(char) * ((charsNumber < bLeft)? charsNumber: bLeft));
                     if (br == -1)
                         errExit("reading files failed");
                     bLeft-=br;
