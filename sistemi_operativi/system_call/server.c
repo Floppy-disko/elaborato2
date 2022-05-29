@@ -13,6 +13,9 @@ int allPartsReceived(int indexes[]){
 }
 
 void try_fifo1(struct bareMessage messages[], int indexes[]){
+    if(indexes[0]>=n_file) //ho già riempito tutte le parti
+        return;
+
     errno=0;  //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
     int br = read(fifo1, &messages[indexes[0]], sizeof(struct bareMessage));
     if(br==-1) {
@@ -29,6 +32,9 @@ void try_fifo1(struct bareMessage messages[], int indexes[]){
 }
 
 void try_fifo2(struct bareMessage messages[], int indexes[]){
+    if(indexes[1]>=n_file) //ho già riempito tutte le parti
+        return;
+
     errno=0;  //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
     int br = read(fifo2, &messages[indexes[1]], sizeof(struct bareMessage));
     if(br==-1) {
@@ -44,11 +50,17 @@ void try_fifo2(struct bareMessage messages[], int indexes[]){
 }
 
 void try_msgq(struct bareMessage messages[], int indexes[]){
+    if(indexes[2]>=n_file) //ho già riempito tutte le parti
+        return;
+
     if(msgQueueReceive(&messages[indexes[2]], 0) == 0)
         indexes[2]++;
 }
 
 void try_shdmem(struct bareMessage messages[], int indexes[]){
+    if(indexes[3]>=n_file) //ho già riempito tutte le parti
+        return;
+
     if(read_from_shdmem(shdmemBuffer, &messages[indexes[3]], 0) == 0)
         indexes[3]++;
 }
@@ -152,18 +164,15 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         printf("\nLeggo il numero di n_file da fifo1");
-        char n_fileString[4];
         int br;
 
         do {  //provo a leggere finchè non trovo qualcosa di diverso dal carattere terminatore
-            br = read(fifo1, n_fileString, sizeof(n_fileString));
+            br = read(fifo1, &n_file, sizeof(int));
             if (br == -1)
                 errExit("Read failed");
         } while(br==0);
 
-        n_file = atoi(n_fileString);
-
-        printf("\nHo letto: %s, invio conferma a client_0\n", n_fileString);
+        printf("\nHo letto: %d, invio conferma a client_0\n", n_file);
         fflush(stdout);
         write_in_shdmem(shdmemBuffer, "", "Conferma ricevimento n_file");
 

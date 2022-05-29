@@ -120,7 +120,6 @@ void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text)
 //TODO modifica il modo che gli passi il puntatore a bareMessage e ritorni -1 se wait=0 e devo aspettare
 int read_from_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *dest, int wait){
 
-    errno=0;
     if(semOp(semShdmemid, 1, -1, wait) == -1)  //vedo se c'è qualcosa da leggere, sennò ritorna -1
         return -1;
 

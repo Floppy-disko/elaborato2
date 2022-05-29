@@ -130,9 +130,9 @@ int main(int argc, char *argv[]) {
             printf("\n%d) %s", i, memAllPath[i]);
         fflush(stdout);
 
-        char n_fileString[4];
-        sprintf(n_fileString, "%d", n_file); //converto il numero di file in stringa da inviare sulla fifo
-        if (write(fifo1, n_fileString, strlen(n_fileString) + 1) == -1)  //scrivo sulla fifo1 il numero di file
+        //char n_fileString[4];
+        //sprintf(n_fileString, "%d", n_file); //converto il numero di file in stringa da inviare sulla fifo
+        if (write(fifo1, &n_file, sizeof(int)) == -1)  //scrivo sulla fifo1 il numero di file
             errExit("Write failed");
 
         printf("\nAttendo conferma ricezione da server");
