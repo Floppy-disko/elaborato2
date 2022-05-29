@@ -60,5 +60,6 @@ Makefile
 # CLion
 .idea/
 
-#personal
+# personal
 stuff
+myDir
