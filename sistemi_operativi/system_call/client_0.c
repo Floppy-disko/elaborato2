@@ -232,6 +232,13 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        struct serverMsg confirm;
+        printf("\nAttendo conferma di fine lavori da parte di server");
+        if (msgrcv(msqid, &confirm, sizeof(struct serverMsg) - sizeof(long), SERVER_MTYPE, 0) == -1)
+            errExit("msgrcv failed");
+        printf("\nConferma ricevuta, ripristino la sigmask");
+        fflush(stdout);
+
         //rispristino il ricevimento di INT e USR1 da parte di client_0
         if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
             errExit("mask fail");

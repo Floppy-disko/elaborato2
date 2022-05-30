@@ -16,13 +16,12 @@ int semOp(int semid, unsigned short sem_num, short sem_op, int wait) {
             (wait) ? 0 : IPC_NOWAIT /* Operation flags */
     };
 
-    errno=0;
-    if (semop(semid, &sop, 1) == -1)
-        if(errno==EAGAIN)  //semplicemente dovrei bloccarmi ma IPC_NOWAIT mi permette di andare avanti
+    if (semop(semid, &sop, 1) == -1) {
+        if (errno == EAGAIN)  //semplicemente dovrei bloccarmi ma IPC_NOWAIT mi permette di andare avanti
             return -1;
         else
             errExit("semop failed");
+    }
 
-    else
-        return 0;
+    return 0;
 }

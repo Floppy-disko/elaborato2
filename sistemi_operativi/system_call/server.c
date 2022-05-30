@@ -16,7 +16,7 @@ void try_fifo1(struct bareMessage messages[], int indexes[]){
     if(indexes[0]>=n_file) //ho già riempito tutte le parti
         return;
 
-    errno=0;  //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
+    //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
     int br = read(fifo1, &messages[indexes[0]], sizeof(struct bareMessage));
     if(br==-1) {
         if (errno == EAGAIN)  //non ho errori è solo vuota
@@ -35,7 +35,7 @@ void try_fifo2(struct bareMessage messages[], int indexes[]){
     if(indexes[1]>=n_file) //ho già riempito tutte le parti
         return;
 
-    errno=0;  //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
+    //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
     int br = read(fifo2, &messages[indexes[1]], sizeof(struct bareMessage));
     if(br==-1) {
         if (errno == EAGAIN)  //non ho errori è solo vuota
@@ -77,6 +77,15 @@ int createOutputFile(char *path){
         errExit("Creation of output file failed");
 
     return fd;
+}
+
+int searchPartIndex(struct bareMessage messages[], int pid){
+    for(int i=0; i<n_file; i++){
+        if(messages[i].pid == pid)
+            return i;
+    }
+
+    return -1; //non dvrei arrivarci mai se il programma funziona
 }
 
 void sigHandler(int sig){
@@ -213,17 +222,29 @@ int main(int argc, char *argv[]) {
 
         char *channelNames[4] = {"FIFO1", "FIFO2", "MsgQueue", "ShdMem"};  //mi salvo il nome di tutti i canali da metter nei file di output
         for(int i=0; i<n_file; i++){
-            int fd = createOutputFile(messages[0][i].path);
+            int fd = createOutputFile(messages[0][i].path); //0 perché ordino i file in base all'ordine con cui ho letto la loro parte 1 da fifo1
             for(int j=0; j<4; j++){
                 char buf[FILE_PATH_MAX*2];
+
                 sprintf(buf, "[Parte %d, del file %s, spedita dal processo %d tramite %s]\n", j+1, messages[0][i].path, messages[0][i].pid, channelNames[j]);
-                //TODO trova il file giusto per ogni canale
                 if(write(fd, buf, strlen(buf)) == -1)
                     errExit("Write on output file failed");
+
+                int partIndex = searchPartIndex(messages[j], messages[0][i].pid);  //cerco in base al pid dell'iesimo messaggio su fifo
+                if(write(fd, messages[j][partIndex].part, strlen(messages[j][partIndex].part)) == -1)
+                    errExit("write on output file failed");
+
+                if(write(fd, "\n\n", 2) == -1)  //dopo ogni parte va una newline
+                    errExit("write on output file failed");
             }
 
             close(fd);
         }
+
+        struct serverMsg confirm = {SERVER_MTYPE};
+        printf("\nInvio conferma a client di aver fatto tutto");
+        if (msgsnd(msqid, &confirm, sizeof(struct serverMsg) - sizeof(long), 0))
+            errExit("msgsnd failed\n");
 
     }
 

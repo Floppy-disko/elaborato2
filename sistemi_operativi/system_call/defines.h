@@ -3,6 +3,7 @@
 ///         e funzioni specifiche del progetto.
 
 #pragma once
+
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -40,23 +41,24 @@
 #define CLIENT_MTYPE 1
 #define SERVER_MTYPE 2
 
-//costante per salvare valore tipo bareMessage
-#define BAREM 4
-
 struct bareMessage {
     pid_t pid;  //pid processo inviante
     char path[FILE_PATH_MAX];  //path file
     char part[1024];      //quarto del file di testo
 };
 
-//struct per msg queue
-struct mymsg{
-  long mtype;
-  struct bareMessage message;
+//struct per msg queue (inviata da client)
+struct clientMsg {
+    long mtype;
+    struct bareMessage message;
+};
+
+struct serverMsg {
+    long mtype;
 };
 
 //struttura che rappresenta l'intera shared memory
-struct shdmemStructure{  //utilizza array di 50 int come vettore di supporto
+struct shdmemStructure {  //utilizza array di 50 int come vettore di supporto
     int in;
     int out;  //in e out sono gli stessi del produttore-consumatore su un buffer circolare in sistemi operativi
     struct bareMessage messages[MSG_NUMBER_MAX];
@@ -77,12 +79,15 @@ int n_file; //variabile modificata da findFiles
 
 char memAllPath[FILE_NUMBER_MAX][FILE_PATH_MAX]; // array per memorizzare i path dei file da inviare/ ricevuti
 
-int findFiles(const char dirpath[], off_t maxSize, char *match); //se vuoi che invii path assoluti passa un path assoluto come valore
+int findFiles(const char dirpath[], off_t maxSize,
+              char *match); //se vuoi che invii path assoluti passa un path assoluto come valore
 
 void write_fifo1(struct bareMessage *message);
+
 void write_fifo2(struct bareMessage *message);
 
 void msgQueueSend(struct bareMessage message, long mtype);
+
 int msgQueueReceive(struct bareMessage *dest, long mtype, int wait);
 
 //scrivo un bareMessage nella shared memory

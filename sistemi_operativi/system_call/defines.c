@@ -20,21 +20,23 @@ int findFiles(const char dirpath[], off_t maxSize, char *match) {
     struct dirent *dentry;
     while ((dentry = readdir(dirp)) != NULL) { // scorro tutta la directory
 
-        if (dentry->d_type == DT_REG && strncmp(match, dentry->d_name, strlen(match)) == 0) { // caso base: ho letto un file che voglio
+        if (dentry->d_type == DT_REG &&
+            strncmp(match, dentry->d_name, strlen(match)) == 0) { // caso base: ho letto un file che voglio
             sprintf(nodePath, "%s/%s", dirpath, dentry->d_name);  // ottengo path finale del file
             struct stat statbuf;
             if (stat(nodePath, &statbuf) == -1)
                 errExit("stat failed");
 
-            if(statbuf.st_size < maxSize) { //verifico che il file non pesi più di 4kb
-                if(n_file>=FILE_NUMBER_MAX)  //massimo 100 file
+            if (statbuf.st_size < maxSize) { //verifico che il file non pesi più di 4kb
+                if (n_file >= FILE_NUMBER_MAX)  //massimo 100 file
                     exit(1);
 
                 strcpy(memAllPath[n_file], nodePath);
                 n_file++; // incremento contatore
             }
 
-        } else if (dentry->d_type == DT_DIR && strcmp(dentry->d_name, ".")!=0 && strcmp(dentry->d_name, "..")!=0) {// se leggo una directory richiamo funzione
+        } else if (dentry->d_type == DT_DIR && strcmp(dentry->d_name, ".") != 0 &&
+                   strcmp(dentry->d_name, "..") != 0) {// se leggo una directory richiamo funzione
             sprintf(nodePath, "%s/%s", dirpath, dentry->d_name);
             findFiles(nodePath, maxSize, match); // cerco ricorsivamente nelle cartelle
         }
@@ -42,63 +44,60 @@ int findFiles(const char dirpath[], off_t maxSize, char *match) {
         errno = 0;
     }
 
-    char errMsg[100] = "Error while reading directory ";
-    strcat(errMsg, dirpath);
     if (errno != 0)
-        errExit(errMsg);
+        errExit("Error while reading directory");
 
     closedir(dirp);
 
     return n_file;
 }
 
-void write_fifo1(struct bareMessage *message){
+void write_fifo1(struct bareMessage *message) {
     semOp(semMessages, 0, -1, 1);
-    if(write (fifo1, message, sizeof(struct bareMessage)) == -1);
+    if (write(fifo1, message, sizeof(struct bareMessage)) == -1);
 }
 
-void write_fifo2(struct bareMessage *message){
+void write_fifo2(struct bareMessage *message) {
     semOp(semMessages, 1, -1, 1);
-    if(write (fifo2, message, sizeof(struct bareMessage)) == -1);
+    if (write(fifo2, message, sizeof(struct bareMessage)) == -1);
 }
 
-void msgQueueSend(struct bareMessage message, long mtype){
+void msgQueueSend(struct bareMessage message, long mtype) {
 
-  struct mymsg send;
-  send.mtype = mtype;
+    struct clientMsg send;
+    send.mtype = mtype;
 
-  send.message = message;
+    send.message = message;
 
-  semOp(semMessages, 2, -1, 1);  //per limitare il massimo numero di messaggi contemporanei a 50
+    semOp(semMessages, 2, -1, 1);  //per limitare il massimo numero di messaggi contemporanei a 50
 
-  if(msgsnd(msqid, &send, sizeof(struct mymsg)-sizeof(long), 0))
-    errExit("msgsnd failed\n");
+    if (msgsnd(msqid, &send, sizeof(struct clientMsg) - sizeof(long), 0))
+        errExit("msgsnd failed\n");
 }
 
-int msgQueueReceive(struct bareMessage *dest, long mtype, int wait){
+int msgQueueReceive(struct bareMessage *dest, long mtype, int wait) {
 
-  struct mymsg message;
+    struct clientMsg message;
 
-  errno=0;
-  if(msgrcv(msqid, &message, sizeof(struct mymsg)-sizeof(long), mtype, ((wait)? 0 : IPC_NOWAIT)) == -1) {
-      if (errno == ENOMSG)
-          return -1;
-      else
-          errExit("msgrcv failed");
-  }
+    if (msgrcv(msqid, &message, sizeof(struct clientMsg) - sizeof(long), mtype, ((wait) ? 0 : IPC_NOWAIT)) == -1) {
+        if (errno == ENOMSG)
+            return -1;
+        else
+            errExit("msgrcv failed");
+    }
 
-  semOp(semMessages, 2, 1, 1); //informo che un messaggio è stato tolto dalla coda messaggi
+    semOp(semMessages, 2, 1, 1); //informo che un messaggio è stato tolto dalla coda messaggi
 
-  *dest = message.message;
+    *dest = message.message;
 
-  return 0;
+    return 0;
 }
 
 ///@param ptr_sh puntatore alla shared memory strutturata
 ///@param filePath path del file di cui invio un quarto
 ///@param text testo da scrivere nel bare message
 //TODO non so se gli strcpy funzionino come penso
-void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text){
+void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text) {
     //copio le stringhe perchè i parametri sono solo puntatori a stringhe gestite da un processo
     struct bareMessage message;
     message.pid = getpid();
@@ -116,9 +115,9 @@ void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text)
 }
 
 ///@param wait a 1 se la lettura è bloccante, a 0 se la lettura non è bloccante
-int read_from_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *dest, int wait){
+int read_from_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *dest, int wait) {
 
-    if(semOp(semShdmemid, 1, -1, wait) == -1)  //vedo se c'è qualcosa da leggere, sennò ritorna -1
+    if (semOp(semShdmemid, 1, -1, wait) == -1)  //vedo se c'è qualcosa da leggere, sennò ritorna -1
         return -1;
 
     semOp(semShdmemid, 0, -1, 1);
