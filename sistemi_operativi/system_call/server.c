@@ -53,7 +53,7 @@ void try_msgq(struct bareMessage messages[], int indexes[]){
     if(indexes[2]>=n_file) //ho già riempito tutte le parti
         return;
 
-    if(msgQueueReceive(&messages[indexes[2]], 0) == 0)
+    if(msgQueueReceive(&messages[indexes[2]], CLIENT_MTYPE, 0) == 0)
         indexes[2]++;
 }
 

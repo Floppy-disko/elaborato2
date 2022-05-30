@@ -37,6 +37,8 @@
 #define KEY_SEM_MESSAGES 'D'
 #define PATH_FIFO1 "fifo1"
 #define PATH_FIFO2 "fifo2"
+#define CLIENT_MTYPE 1
+#define SERVER_MTYPE 2
 
 //costante per salvare valore tipo bareMessage
 #define BAREM 4
@@ -80,8 +82,8 @@ int findFiles(const char dirpath[], off_t maxSize, char *match);
 void write_fifo1(struct bareMessage *message);
 void write_fifo2(struct bareMessage *message);
 
-void msgQueueSend(struct bareMessage message);
-int msgQueueReceive(struct bareMessage *dest, int wait);
+void msgQueueSend(struct bareMessage message, long mtype);
+int msgQueueReceive(struct bareMessage *dest, long mtype, int wait);
 
 //scrivo un bareMessage nella shared memory
 void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text);

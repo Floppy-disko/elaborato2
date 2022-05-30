@@ -63,10 +63,10 @@ void write_fifo2(struct bareMessage *message){
     if(write (fifo2, message, sizeof(struct bareMessage)) == -1);
 }
 
-void msgQueueSend(struct bareMessage message){
+void msgQueueSend(struct bareMessage message, long mtype){
 
   struct mymsg send;
-  send.mtype = BAREM;
+  send.mtype = mtype;
 
   send.message = message;
 
@@ -76,12 +76,12 @@ void msgQueueSend(struct bareMessage message){
     errExit("msgsnd failed\n");
 }
 
-int msgQueueReceive(struct bareMessage *dest, int wait){
+int msgQueueReceive(struct bareMessage *dest, long mtype, int wait){
 
   struct mymsg message;
 
   errno=0;
-  if(msgrcv(msqid, &message, sizeof(struct mymsg)-sizeof(long), BAREM, ((wait)? 0 : IPC_NOWAIT)) == -1) {
+  if(msgrcv(msqid, &message, sizeof(struct mymsg)-sizeof(long), mtype, ((wait)? 0 : IPC_NOWAIT)) == -1) {
       if (errno == ENOMSG)
           return -1;
       else
