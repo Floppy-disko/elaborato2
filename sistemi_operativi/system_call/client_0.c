@@ -212,7 +212,7 @@ int main(int argc, char *argv[]) {
                 }
 
                 if(close(fdFile)==-1)  //chiudi
-                    errExit("close of files failed");
+                    errExit("close file failed");
 
                 printf("\nclient_%d aspetta\n", child + 1);
                 fflush(stdout);

@@ -52,7 +52,6 @@ int findFiles(const char dirpath[], off_t maxSize, char *match) {
     return n_file;
 }
 
-//TODO usa semafori per fare in modo che massimo 50 messaggi siano nelle fifo e nella msgq
 void write_fifo1(struct bareMessage *message){
     semOp(semMessages, 0, -1, 1);
     if(write (fifo1, message, sizeof(struct bareMessage)) == -1);
@@ -117,7 +116,6 @@ void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text)
 }
 
 ///@param wait a 1 se la lettura è bloccante, a 0 se la lettura non è bloccante
-//TODO modifica il modo che gli passi il puntatore a bareMessage e ritorni -1 se wait=0 e devo aspettare
 int read_from_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *dest, int wait){
 
     if(semOp(semShdmemid, 1, -1, wait) == -1)  //vedo se c'è qualcosa da leggere, sennò ritorna -1

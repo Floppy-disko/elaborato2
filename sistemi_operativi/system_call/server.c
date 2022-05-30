@@ -65,6 +65,20 @@ void try_shdmem(struct bareMessage messages[], int indexes[]){
         indexes[3]++;
 }
 
+int createOutputFile(char *path){
+    char newPath[FILE_PATH_MAX];
+    int nameLen = strlen(path)-strlen(".txt"); //lunghezza nome file senza l'estensione .txt
+    strncpy(newPath, path, nameLen);
+    newPath[nameLen]='\0';  //la strncpy non aggiunge il terminatore se non ci arriva, ce lo devo mettere io
+    strcat(newPath, "_out.txt");
+    printf("\nnewPath: %s, nameLen: %d", newPath, nameLen);
+    int fd = open(newPath, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR); //creo il file
+    if(fd==-1)
+        errExit("Creation of output file failed");
+
+    return fd;
+}
+
 void sigHandler(int sig){
     if(sig==SIGINT){     //chiudo ed elimino le ipc
         if(close(fifo1)==-1 || close(fifo2)==-1)
@@ -193,6 +207,22 @@ int main(int argc, char *argv[]) {
             for (int j = 0; j < 4; j++) {
                 printf("%s,", messages[j][i].part);
             }
+        }
+
+        printf("\nCreo i file di output");
+
+        char *channelNames[4] = {"FIFO1", "FIFO2", "MsgQueue", "ShdMem"};  //mi salvo il nome di tutti i canali da metter nei file di output
+        for(int i=0; i<n_file; i++){
+            int fd = createOutputFile(messages[0][i].path);
+            for(int j=0; j<4; j++){
+                char buf[FILE_PATH_MAX*2];
+                sprintf(buf, "[Parte %d, del file %s, spedita dal processo %d tramite %s]\n", j+1, messages[0][i].path, messages[0][i].pid, channelNames[j]);
+                //TODO trova il file giusto per ogni canale
+                if(write(fd, buf, strlen(buf)) == -1)
+                    errExit("Write on output file failed");
+            }
+
+            close(fd);
         }
 
     }
