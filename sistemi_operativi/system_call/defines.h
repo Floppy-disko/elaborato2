@@ -77,7 +77,7 @@ int n_file; //variabile modificata da findFiles
 
 char memAllPath[FILE_NUMBER_MAX][FILE_PATH_MAX]; // array per memorizzare i path dei file da inviare/ ricevuti
 
-int findFiles(const char dirpath[], off_t maxSize, char *match);
+int findFiles(const char dirpath[], off_t maxSize, char *match); //se vuoi che invii path assoluti passa un path assoluto come valore
 
 void write_fifo1(struct bareMessage *message);
 void write_fifo2(struct bareMessage *message);

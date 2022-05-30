@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 
         //controllo cartelle
         n_file = 0;  //readDir modificherà il valore della avriabile flobale n_file e riempirà l'array memallpath coi path dei files
-        findFiles(".", FILE_SIZE_MAX, "sendme_");
+        findFiles(newDir, FILE_SIZE_MAX, "sendme_");
         printf("\n%d file trovati: ", n_file);
         for (int i = 0; i < n_file; i++)
             printf("\n%d) %s", i, memAllPath[i]);
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
                 if (fstat(fdFile, &statbuf) == -1)
                     errExit("fstat file failed");
 
-                off_t fileSize = statbuf.st_size-1;  //col -1 tolgo il newline di ogni file
+                off_t fileSize = (statbuf.st_size==0)? 0 : statbuf.st_size-1;  //col -1 tolgo il newline di ogni file però se il file è vuoto (size=0) non posso andare a -1
 
                 //creo i 4 messaggi in cui il file deve essere inviato
                 struct bareMessage messages[4];
