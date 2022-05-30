@@ -185,19 +185,30 @@ int main(int argc, char *argv[]) {
                 if (current == -1)
                     errExit("lseek failed");
 
-                off_t charsNumber = fileSize / 4 + (fileSize % 4 !=0); //le divisioni tra positivi arrotondano a -inf, quindi visto che voglio arrotondare a +inf se il numero non è divisibile per 4 devo aggiungere 1 al risultato
+                ///off_t charsNumber = fileSize / 4 + (fileSize % 4 !=0); //le divisioni tra positivi arrotondano a -inf, quindi visto che voglio arrotondare a +inf se il numero non è divisibile per 4 devo aggiungere 1 al risultato
 
-                printf("\nfile %s, size %d, charsNumber %d", memAllPath[child], fileSize, charsNumber);
+                off_t quotient = fileSize / 4;
+                off_t remainder = fileSize % 4;
 
-                for (int i = 0, bLeft=fileSize, br=0; i < 4; i++) {
+                ///printf("\nfile %s, size %d, charsNumber %d", memAllPath[child], fileSize, charsNumber);
 
-                    //per evitare di leggere il new line che ha ogni file prendo il numero minore
-                    br = read(fdFile, messages[i].part, sizeof(char) * ((charsNumber < bLeft)? charsNumber: bLeft));
-                    if (br == -1)
-                        errExit("reading files failed");
-                    bLeft-=br;
+//                for (int i = 0, bLeft=fileSize, br=0; i < 4; i++) {
+//
+//                    //per evitare di leggere il new line che ha ogni file prendo il numero minore
+//                    br = read(fdFile, messages[i].part, sizeof(char) * ((charsNumber < bLeft)? charsNumber: bLeft));
+//                    if (br == -1)
+//                        errExit("reading files failed");
+//                    bLeft-=br;
+//
+//                    messages[i].part[br]='\0';  //appendo il terminatore alla fine di quello che ho copiato
+//                }
 
-                    messages[i].part[br]='\0';  //appendo il terminatore alla fine di quello che ho copiato
+                for(int i=0, br=0; i<4; i++){
+                    br = read(fdFile, messages[i].part, quotient + ((i<remainder)?1 : 0)); //se ho resto 0 non aggiungo niente a nessun canale, se ho 1 aggiungo solo al primo
+                    if(br == -1)
+                        errExit("Reading files failed");
+
+                    messages[i].part[br]='\0';
                 }
 
                 if(close(fdFile)==-1)  //chiudi
