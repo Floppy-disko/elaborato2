@@ -115,16 +115,19 @@ int main(int argc, char *argv[]) {
         if (sigprocmask(SIG_SETMASK, &SigSet2, NULL) == -1)
             errExit("mask fail");
         //cambio directory di lavoro
-        char buf[FILE_PATH_MAX];
         //printf("%s", getcwd(buf, FILE_PATH_MAX));
         if (chdir(newDir) == -1)
             errExit("chdir failed");
+
+        if(getcwd(newDir, FILE_PATH_MAX)==NULL)
+            errExit("getcwd failed");
+        
         //output su terminale, si può usare printf? ricky dice di sì
-        printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), getcwd(buf, FILE_PATH_MAX));
+        printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), newDir);
 
         //controllo cartelle
         n_file = 0;  //readDir modificherà il valore della avriabile flobale n_file e riempirà l'array memallpath coi path dei files
-        findFiles(newDir, FILE_SIZE_MAX, "sendme_");
+        findFiles(".", FILE_SIZE_MAX, "sendme_");
         printf("\n%d file trovati: ", n_file);
         for (int i = 0; i < n_file; i++)
             printf("\n%d) %s", i, memAllPath[i]);
