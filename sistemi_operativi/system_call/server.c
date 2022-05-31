@@ -231,10 +231,11 @@ int main(int argc, char *argv[]) {
                     errExit("Write on output file failed");
 
                 int partIndex = searchPartIndex(messages[j], messages[0][i].pid);  //cerco in base al pid dell'iesimo messaggio su fifo
-                if(write(fd, messages[j][partIndex].part, strlen(messages[j][partIndex].part)) == -1)
+                int br = write(fd, messages[j][partIndex].part, strlen(messages[j][partIndex].part));
+                if(br == -1)
                     errExit("write on output file failed");
 
-                if(write(fd, "\n\n", 2) == -1)  //dopo ogni parte va una newline
+                if(write(fd, (br==0)? "\n" : "\n\n", 2) == -1)  //dopo ogni parte va una newline
                     errExit("write on output file failed");
             }
 

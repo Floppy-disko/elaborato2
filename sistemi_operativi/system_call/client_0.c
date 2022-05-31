@@ -43,8 +43,6 @@ int main(int argc, char *argv[]) {
     char newDir[FILE_PATH_MAX];
     strcpy(newDir, argv[1]);
 
-    //lato client apertura di fifo, mssgqueue, shared memory...VA FATTA DAI CHILD?
-
     key_t msgq_k = ftok(getenv("HOME"), KEY_MSGQ);
     if (msgq_k == -1)
         errExit("ftok msgq failed");
@@ -123,7 +121,10 @@ int main(int argc, char *argv[]) {
             errExit("getcwd failed");
         
         //output su terminale, si può usare printf? ricky dice di sì
-        printf("\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), newDir);
+        char buf[2*FILE_PATH_MAX];
+        sprintf(buf,"\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), newDir);
+        if(write(STDOUT_FILENO, buf, strlen(buf)) == -1)
+            errExit("Write failed");
 
         //controllo cartelle
         n_file = 0;  //readDir modificherà il valore della avriabile flobale n_file e riempirà l'array memallpath coi path dei files

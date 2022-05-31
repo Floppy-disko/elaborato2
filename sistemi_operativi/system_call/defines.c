@@ -54,12 +54,14 @@ int findFiles(const char dirpath[], off_t maxSize, char *match) {
 
 void write_fifo1(struct bareMessage *message) {
     semOp(semMessages, 0, -1, 1);
-    if (write(fifo1, message, sizeof(struct bareMessage)) == -1);
+    if (write(fifo1, message, sizeof(struct bareMessage)) == -1)
+        errExit("Write failed");
 }
 
 void write_fifo2(struct bareMessage *message) {
     semOp(semMessages, 1, -1, 1);
-    if (write(fifo2, message, sizeof(struct bareMessage)) == -1);
+    if (write(fifo2, message, sizeof(struct bareMessage)) == -1)
+        errExit("Write failed");
 }
 
 void msgQueueSend(struct bareMessage message, long mtype) {
@@ -96,7 +98,6 @@ int msgQueueReceive(struct bareMessage *dest, long mtype, int wait) {
 ///@param ptr_sh puntatore alla shared memory strutturata
 ///@param filePath path del file di cui invio un quarto
 ///@param text testo da scrivere nel bare message
-//TODO non so se gli strcpy funzionino come penso
 void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text) {
     //copio le stringhe perchè i parametri sono solo puntatori a stringhe gestite da un processo
     struct bareMessage message;

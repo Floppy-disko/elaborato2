@@ -44,7 +44,7 @@
 struct bareMessage {
     pid_t pid;  //pid processo inviante
     char path[FILE_PATH_MAX];  //path file
-    char part[1024];      //quarto del file di testo
+    char part[FILE_SIZE_MAX/4];      //quarto del file di testo
 };
 
 //struct per msg queue (inviata da client)
