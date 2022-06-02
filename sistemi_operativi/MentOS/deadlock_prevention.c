@@ -69,7 +69,8 @@ static bool_t state_safe(uint32_t *arr_available, uint32_t **mat_alloc,
         {
             // Assume to make available the resources that the task found needs.
             /**/
-            arr_add(work, mat_need[i], m);
+            arr_add(work, mat_alloc[i], m);
+            finish[i]=1UL;
         }
     }
 
@@ -101,7 +102,7 @@ deadlock_status_t request(uint32_t *req_vec, size_t task_i,
     arr_sub(mat_need[task_i], req_vec, m);
 
     // Check safe state
-    if (/**/!state_safe(arr_available, mat_alloc, mat_need, n, m))
+    if (/**/state_safe(arr_available, mat_alloc, mat_need, n, m)==false)
     {
         // Restore previous allocation.
         /**/
