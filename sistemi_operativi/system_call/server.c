@@ -14,15 +14,15 @@ int allPartsReceived(int indexes[]){
     return 1;
 }
 
-void try_fifo1(struct bareMessage messages[], int indexes[]){
+void try_fifo(int fifo, struct bareMessage messages[], int *index){
     //finchè non ho riempito tutte le parti ho la read non ritorna -1 con errno==EAGAIN
-    while(indexes[0]<n_file) {
+    while(*index<n_file) {
 
         int n=0; ///
         printf("\nProvo a leggere da fifo1 per la %d volta", n);
         fflush(stdout);
         //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
-        int br = read(fifo1, &messages[indexes[0]], sizeof(struct bareMessage));
+        int br = read(fifo, &messages[*index], sizeof(struct bareMessage));
         if (br == -1) {
             if (errno == EAGAIN)  //non ho errori è solo vuota
                 return;
@@ -34,28 +34,10 @@ void try_fifo1(struct bareMessage messages[], int indexes[]){
         printf("\nHo letto da fifo1");
         fflush(stdout);
         semOp(semMessages, 0, 1, 1);
-        indexes[0]++;  //se ho letto un messaggio incremento index di 1
+        (*index)++;  //se ho letto un messaggio incremento index di 1
         n++; ///
     }
 
-}
-
-void try_fifo2(struct bareMessage messages[], int indexes[]){
-    while(indexes[1]<n_file) {
-
-        //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
-        int br = read(fifo2, &messages[indexes[1]], sizeof(struct bareMessage));
-        if (br == -1) {
-            if (errno == EAGAIN)  //non ho errori è solo vuota
-                return;
-
-            else
-                errExit("Nonblocking read fifo1 failed");
-        }
-
-        semOp(semMessages, 1, 1, 1);
-        indexes[1]++;  //se ho letto un messaggio incremento index di 1
-    }
 }
 
 void try_msgq(struct bareMessage messages[], int indexes[]){
@@ -222,8 +204,8 @@ int main(int argc, char *argv[]) {
         int indexes[4]={0};  //inizializzati a 0 arriveranno fino al valore di n_file
 
         while(!allPartsReceived(indexes)){
-            try_fifo1(messages[0], indexes);
-            try_fifo2(messages[1], indexes);
+            try_fifo(fifo1, messages[0], &indexes[0]);
+            try_fifo(fifo2, messages[1], &indexes[1]);
             try_msgq(messages[2], indexes);
             try_shdmem(messages[3], indexes);
         }
