@@ -3,6 +3,8 @@
 
 #include "defines.h"
 
+int fifo1_block=-1;  //finchè rimane a -1 il sigHandler sa che non l'ho ancora aperto e quindi non prova a chiuderlo
+
 //ristorna 0 per non ricevute tutte e 1 per ricevute tutte
 int allPartsReceived(int indexes[]){
     for(int i=0; i<4; i++)
@@ -13,56 +15,63 @@ int allPartsReceived(int indexes[]){
 }
 
 void try_fifo1(struct bareMessage messages[], int indexes[]){
-    if(indexes[0]>=n_file) //ho già riempito tutte le parti
-        return;
+    //finchè non ho riempito tutte le parti ho la read non ritorna -1 con errno==EAGAIN
+    while(indexes[0]<n_file) {
 
-    //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
-    int br = read(fifo1, &messages[indexes[0]], sizeof(struct bareMessage));
-    if(br==-1) {
-        if (errno == EAGAIN)  //non ho errori è solo vuota
-           return;
+        int n=0; ///
+        printf("\nProvo a leggere da fifo1 per la %d volta", n);
+        fflush(stdout);
+        //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
+        int br = read(fifo1, &messages[indexes[0]], sizeof(struct bareMessage));
+        if (br == -1) {
+            if (errno == EAGAIN)  //non ho errori è solo vuota
+                return;
 
-        else
-            errExit("Nonblocking read fifo1 failed");
+            else
+                errExit("Nonblocking read fifo1 failed");
+        }
+
+        printf("\nHo letto da fifo1");
+        fflush(stdout);
+        semOp(semMessages, 0, 1, 1);
+        indexes[0]++;  //se ho letto un messaggio incremento index di 1
+        n++; ///
     }
-
-    semOp(semMessages, 0, 1, 1);
-    indexes[0]++;  //se ho letto un messaggio incremento index di 1
 
 }
 
 void try_fifo2(struct bareMessage messages[], int indexes[]){
-    if(indexes[1]>=n_file) //ho già riempito tutte le parti
-        return;
+    while(indexes[1]<n_file) {
 
-    //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
-    int br = read(fifo2, &messages[indexes[1]], sizeof(struct bareMessage));
-    if(br==-1) {
-        if (errno == EAGAIN)  //non ho errori è solo vuota
-            return;
+        //read ritorna -1 con errno EAGAIN se non si blocca data la flag O_NONBLOCK
+        int br = read(fifo2, &messages[indexes[1]], sizeof(struct bareMessage));
+        if (br == -1) {
+            if (errno == EAGAIN)  //non ho errori è solo vuota
+                return;
 
-        else
-            errExit("Nonblocking read fifo1 failed");
+            else
+                errExit("Nonblocking read fifo1 failed");
+        }
+
+        semOp(semMessages, 1, 1, 1);
+        indexes[1]++;  //se ho letto un messaggio incremento index di 1
     }
-
-    semOp(semMessages, 1, 1, 1);
-    indexes[1]++;  //se ho letto un messaggio incremento index di 1
 }
 
 void try_msgq(struct bareMessage messages[], int indexes[]){
-    if(indexes[2]>=n_file) //ho già riempito tutte le parti
-        return;
+    while(indexes[2]<n_file) {
 
-    if(msgQueueReceive(&messages[indexes[2]], CLIENT_MTYPE, 0) == 0)
-        indexes[2]++;
+        if (msgQueueReceive(&messages[indexes[2]], CLIENT_MTYPE, 0) == 0)
+            indexes[2]++;
+    }
 }
 
 void try_shdmem(struct bareMessage messages[], int indexes[]){
-    if(indexes[3]>=n_file) //ho già riempito tutte le parti
-        return;
+    while(indexes[3]<n_file) {
 
-    if(read_from_shdmem(shdmemBuffer, &messages[indexes[3]], 0) == 0)
-        indexes[3]++;
+        if (read_from_shdmem(shdmemBuffer, &messages[indexes[3]], 0) == 0)
+            indexes[3]++;
+    }
 }
 
 int createOutputFile(char *path){
@@ -91,7 +100,11 @@ int searchPartIndex(struct bareMessage messages[], int pid){
 void sigHandler(int sig){
     if(sig==SIGINT){     //chiudo ed elimino le ipc
         if(close(fifo1)==-1 || close(fifo2)==-1)
-            errExit("Closing fifos FDs failed");
+            errExit("Closing nonblocking fifos failed");
+
+        if(fifo1_block!=-1 && close(fifo1_block)==-1)
+            errExit("Closing fifo1_block failed");
+
         if(unlink(fifo1Path)==-1 || unlink(fifo2Path)==-1)
             errExit("Unlinking fifos failed");
 
@@ -175,22 +188,26 @@ int main(int argc, char *argv[]) {
         errExit("mkfifo failed");
 
     //ora apro le fifo in lettura
-    fifo1 = open(fifo1Path, O_RDONLY);
+    fifo1 = open(fifo1Path, O_RDONLY | O_NONBLOCK);
     if (fifo1 == -1)
-        errExit("open fifo1 failed");
-    fifo2 = open(fifo2Path, O_RDONLY);
+        errExit("open fifo1 in nonblocking mode failed");
+    fifo2 = open(fifo2Path, O_RDONLY | O_NONBLOCK);
     if (fifo2 == -1)
         errExit("open fifo2 failed");
 
     if (signal(SIGINT, sigHandler) == SIG_ERR)
         errExit("change signal handler failed");
 
+    fifo1_block = open(fifo1Path, O_RDONLY);  //mi serve solo per la lettura del numero di file bloccante
+    if (fifo1_block == -1)
+        errExit("open fifo1 in blocking mode failed");
+
     while(1) {
         printf("\nLeggo il numero di n_file da fifo1");
         int br;
 
-        do {  //provo a leggere finchè non trovo qualcosa di diverso dal carattere terminatore
-            br = read(fifo1, &n_file, sizeof(int));
+        do {  //provo a leggere finchè non trovo qualcosa di diverso dal carattere terminatore (raro caso in cui la write end viene chiusa)
+            br = read(fifo1_block, &n_file, sizeof(int));
             if (br == -1)
                 errExit("Read failed");
         } while(br==0);
@@ -202,7 +219,7 @@ int main(int argc, char *argv[]) {
         printf("\nMi metto in ascolto delle parti di file");
 
         struct bareMessage messages[4][n_file];
-        int indexes[4]={0};  //inizializzati a 0
+        int indexes[4]={0};  //inizializzati a 0 arriveranno fino al valore di n_file
 
         while(!allPartsReceived(indexes)){
             try_fifo1(messages[0], indexes);

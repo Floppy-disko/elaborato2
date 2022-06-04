@@ -66,6 +66,7 @@ struct shdmemStructure {  //utilizza array di 50 int come vettore di supporto
 
 //definizione variabili per ipc, fifo e semafori
 int fifo1;
+int fifo1_block;
 char fifo1Path[FILE_PATH_MAX];
 int fifo2;
 char fifo2Path[FILE_PATH_MAX];
@@ -74,6 +75,7 @@ int shdmemid;
 struct shdmemStructure *shdmemBuffer;
 int semShdmemid;  //3 semafori per gestire la msgq come memoria circolare
 int semMessages; //3 semafori per fare in modo di avere max 50 messaggi su fifo1, fifo2 e msgq
+int semChilds;
 
 int n_file; //variabile modificata da findFiles
 

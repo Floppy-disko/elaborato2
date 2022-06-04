@@ -3,16 +3,19 @@
 
 #include "defines.h"
 
-int semChilds;  //semaforo per coordinare i figli
+int fifo1=-1;  //servono a -1 così che se ricevessi SIGUSR1 prima di aver aperto le fifo e creato i semafori, il sigHandler non provi a chiuderli
+int fifo2=-1;
+int semChilds = -1; //semaforo per coordinare i figli
 
 void sigHandler(int sig) { //serve solo per interrompere la pause
     if (sig == SIGUSR1) {
-        if (close(fifo1) == -1 || close(fifo2) == -1)
+        if ((fifo1!=-1 && close(fifo1)==-1) || (fifo2!=-1 && close(fifo2)==-1))  //se fifo1==-1 è perchè non lo ancora aperta e non ha senso chiuderla
             errExit("Closing fifos FDs failed");
 
-        free_shared_memory(shdmemBuffer);
+        if(shdmemBuffer!=NULL)  //libero l shared memory solo se l'ho già attaccata sennò darebbe errore
+            free_shared_memory(shdmemBuffer);
 
-        if (semctl(semChilds, 0, IPC_RMID) == -1)
+        if (semChilds!=-1 && semctl(semChilds, 0, IPC_RMID) == -1)
             errExit("semctl IPC_RMID failed");
 
         exit(0);
@@ -39,6 +42,12 @@ int main(int argc, char *argv[]) {
         errExit("deleting mySet failed");
     if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)
         errExit("mask fail");
+
+    //setto gli handler
+    if (signal(SIGINT, sigHandler) == SIG_ERR)
+        errExit("change signal handler failed");
+    if (signal(SIGUSR1, sigHandler) == SIG_ERR)
+        errExit("change signal handler failed");
 
     char newDir[FILE_PATH_MAX];
     strcpy(newDir, argv[1]);
@@ -95,12 +104,6 @@ int main(int argc, char *argv[]) {
     semChilds = semget(IPC_PRIVATE, 1, S_IRUSR | S_IWUSR | IPC_CREAT);
     if(semChilds == -1)
         errExit("semget failed");
-
-    //setto gli handler
-    if (signal(SIGINT, sigHandler) == SIG_ERR)
-        errExit("change signal handler failed");
-    if (signal(SIGUSR1, sigHandler) == SIG_ERR)
-        errExit("change signal handler failed");
 
     //loop con il codice vero e proprio del main
     while (1) {
