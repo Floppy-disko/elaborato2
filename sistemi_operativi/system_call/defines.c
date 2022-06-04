@@ -47,7 +47,8 @@ int findFiles(const char dirpath[], off_t maxSize, char *match) {
     if (errno != 0)
         errExit("Error while reading directory");
 
-    closedir(dirp);
+    if(closedir(dirp)==-1)
+        errExit("closedir failed");
 
     return n_file;
 }

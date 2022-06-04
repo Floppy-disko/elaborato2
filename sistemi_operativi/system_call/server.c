@@ -40,19 +40,19 @@ void try_fifo(int fifo, struct bareMessage messages[], int *index){
 
 }
 
-void try_msgq(struct bareMessage messages[], int indexes[]){
-    while(indexes[2]<n_file) {
+void try_msgq(struct bareMessage messages[], int *index){
+    while(*index<n_file) {
 
-        if (msgQueueReceive(&messages[indexes[2]], CLIENT_MTYPE, 0) == 0)
-            indexes[2]++;
+        if (msgQueueReceive(&messages[*index], CLIENT_MTYPE, 0) == 0)
+            (*index)++;
     }
 }
 
-void try_shdmem(struct bareMessage messages[], int indexes[]){
-    while(indexes[3]<n_file) {
+void try_shdmem(struct bareMessage messages[], int *index){
+    while(*index<n_file) {
 
-        if (read_from_shdmem(shdmemBuffer, &messages[indexes[3]], 0) == 0)
-            indexes[3]++;
+        if (read_from_shdmem(shdmemBuffer, &messages[*index], 0) == 0)
+            (*index)++;
     }
 }
 
@@ -206,8 +206,8 @@ int main(int argc, char *argv[]) {
         while(!allPartsReceived(indexes)){
             try_fifo(fifo1, messages[0], &indexes[0]);
             try_fifo(fifo2, messages[1], &indexes[1]);
-            try_msgq(messages[2], indexes);
-            try_shdmem(messages[3], indexes);
+            try_msgq(messages[2], &indexes[2]);
+            try_shdmem(messages[3], &indexes[3]);
         }
 
         for(int i=0; i<n_file; i++) {
