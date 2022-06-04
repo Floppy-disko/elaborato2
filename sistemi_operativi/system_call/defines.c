@@ -28,11 +28,11 @@ int findFiles(const char dirpath[], off_t maxSize, char *match) {
                 errExit("stat failed");
 
             if (statbuf.st_size < maxSize) { //verifico che il file non pesi più di 4kb
-                if (n_file >= FILE_NUMBER_MAX)  //massimo 100 file
-                    exit(1);
-
                 strcpy(memAllPath[n_file], nodePath);
                 n_file++; // incremento contatore
+
+                if(n_file>=FILE_NUMBER_MAX)  //Se ho letto già 100 file mi fermo
+                    return FILE_NUMBER_MAX;
             }
 
         } else if (dentry->d_type == DT_DIR && strcmp(dentry->d_name, ".") != 0 &&
@@ -117,6 +117,7 @@ void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text)
 }
 
 ///@param wait a 1 se la lettura è bloccante, a 0 se la lettura non è bloccante
+///@return -1 se non e bloccante e sarebbe stato bloccato, 0 se non viene bloccato
 int read_from_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *dest, int wait) {
 
     if (semOp(semShdmemid, 1, -1, wait) == -1)  //vedo se c'è qualcosa da leggere, sennò ritorna -1
