@@ -229,7 +229,7 @@ int main(int argc, char *argv[]) {
                 write_fifo1(&messages[0]);
                 write_fifo2(&messages[1]);
                 msgQueueSend(messages[2], CLIENT_MTYPE);
-                write_in_shdmem(shdmemBuffer, messages[3].path, messages[3].part);
+                write_in_shdmem(shdmemBuffer, &messages[3]);
 
                 //chiudo i figli e stacco le robe
                 return 0;

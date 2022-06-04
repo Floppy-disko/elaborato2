@@ -99,17 +99,12 @@ int msgQueueReceive(struct bareMessage *dest, long mtype, int wait) {
 ///@param ptr_sh puntatore alla shared memory strutturata
 ///@param filePath path del file di cui invio un quarto
 ///@param text testo da scrivere nel bare message
-void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text) {
-    //copio le stringhe perchè i parametri sono solo puntatori a stringhe gestite da un processo
-    struct bareMessage message;
-    message.pid = getpid();
-    strcpy(message.path, filePath);
-    strcpy(message.part, text);
+void write_in_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *message) {
 
     semOp(semShdmemid, 2, -1, 1);  //vedo se ci sono spazi liberi, aspetto per forza che sia libero per scrivere
     semOp(semShdmemid, 0, -1, 1);  //prendo sezione critica
 
-    ptr_sh->messages[ptr_sh->in] = message;  //metto il messaggio nella prima cella libera del buffer circolare
+    ptr_sh->messages[ptr_sh->in] = *message;  //metto il messaggio nella prima cella libera del buffer circolare
     ptr_sh->in = (ptr_sh->in + 1) % MSG_NUMBER_MAX;  //quando ho raggiunto in=50 ricomincio d in=0
 
     semOp(semShdmemid, 0, 1, 1);  //libero sezione critica

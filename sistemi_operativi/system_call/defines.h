@@ -93,6 +93,6 @@ void msgQueueSend(struct bareMessage message, long mtype);
 int msgQueueReceive(struct bareMessage *dest, long mtype, int wait);
 
 //scrivo un bareMessage nella shared memory
-void write_in_shdmem(struct shdmemStructure *ptr_sh, char *filePath, char *text);
+void write_in_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *message);
 
 int read_from_shdmem(struct shdmemStructure *ptr_sh, struct bareMessage *dest, int wait);

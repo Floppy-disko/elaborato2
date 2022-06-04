@@ -194,7 +194,8 @@ int main(int argc, char *argv[]) {
 
         printf("\nHo letto: %d, invio conferma a client_0\n", n_file);
         fflush(stdout);
-        write_in_shdmem(shdmemBuffer, "", "Conferma ricevimento n_file");
+        struct bareMessage confirmation = {0, "", "Conferma"};
+        write_in_shdmem(shdmemBuffer, &confirmation);
 
         printf("\nMi metto in ascolto delle parti di file");
 
