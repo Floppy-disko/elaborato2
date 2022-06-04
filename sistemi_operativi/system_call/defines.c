@@ -65,12 +65,12 @@ void write_fifo2(struct bareMessage *message) {
         errExit("Write failed");
 }
 
-void msgQueueSend(struct bareMessage message, long mtype) {
+void msgQueueSend(struct bareMessage *message, long mtype) {
 
     struct clientMsg send;
     send.mtype = mtype;
 
-    send.message = message;
+    send.message = *message;
 
     semOp(semMessages, 2, -1, 1);  //per limitare il massimo numero di messaggi contemporanei a 50
 

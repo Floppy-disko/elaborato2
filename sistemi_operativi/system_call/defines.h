@@ -88,7 +88,7 @@ void write_fifo1(struct bareMessage *message);
 
 void write_fifo2(struct bareMessage *message);
 
-void msgQueueSend(struct bareMessage message, long mtype);
+void msgQueueSend(struct bareMessage *message, long mtype);
 
 int msgQueueReceive(struct bareMessage *dest, long mtype, int wait);
 
