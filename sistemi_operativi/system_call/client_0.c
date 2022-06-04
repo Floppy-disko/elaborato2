@@ -116,41 +116,28 @@ int main(int argc, char *argv[]) {
         if (sigprocmask(SIG_SETMASK, &SigSet2, NULL) == -1)
             errExit("mask fail");
         //cambio directory di lavoro
-        //printf("%s", getcwd(buf, FILE_PATH_MAX));
         if (chdir(newDir) == -1)
             errExit("chdir failed");
 
         if(getcwd(newDir, FILE_PATH_MAX)==NULL)
             errExit("getcwd failed");
-        
-        //output su terminale, si può usare printf? ricky dice di sì
+
         char buf[2*FILE_PATH_MAX];
-        sprintf(buf,"\nCiao %s, ora inzio l'invio dei file contenuti in %s.", getenv("USER"), newDir);
+        sprintf(buf,"\nCiao %s, ora inzio l'invio dei file contenuti in %s", getenv("USER"), newDir);
         if(write(STDOUT_FILENO, buf, strlen(buf)) == -1)
             errExit("Write failed");
 
         //controllo cartelle
         n_file = 0;  //readDir modificherà il valore della avriabile flobale n_file e riempirà l'array memallpath coi path dei files
         findFiles(newDir, FILE_SIZE_MAX, "sendme_");
-        printf("\n%d file trovati: ", n_file);
-        for (int i = 0; i < n_file; i++)
-            printf("\n%d) %s", i, memAllPath[i]);
-        fflush(stdout);
 
         //char n_fileString[4];
         //sprintf(n_fileString, "%d", n_file); //converto il numero di file in stringa da inviare sulla fifo
         if (write(fifo1, &n_file, sizeof(int)) == -1)  //scrivo sulla fifo1 il numero di file
             errExit("Write failed");
 
-        printf("\nAttendo conferma ricezione da server");
         struct bareMessage message;
-        read_from_shdmem(shdmemBuffer, &message, 1);
-        if (strncmp("Conferma", message.part, strlen("Conferma")) == 0)
-            printf("\nIl server conferma!");
-
-        else
-            printf("\nLa conferma ha un testo inaspettato: %s", message.part);
-        fflush(stdout);
+        read_from_shdmem(shdmemBuffer, &message, 1);  //attendo il messaggio di conferma
 
         //inizializzo il semaforo al numero di file = numero figli
         union semun arg;
@@ -194,8 +181,6 @@ int main(int argc, char *argv[]) {
                 off_t quotient = fileSize / 4;
                 off_t remainder = fileSize % 4;
 
-                ///printf("\nfile %s, size %d, charsNumber %d", memAllPath[child], fileSize, charsNumber);
-
 //                for (int i = 0, bLeft=fileSize, br=0; i < 4; i++) {
 //
 //                    //per evitare di leggere il new line che ha ogni file prendo il numero minore
@@ -218,12 +203,8 @@ int main(int argc, char *argv[]) {
                 if(close(fdFile)==-1)  //chiudi
                     errExit("close file failed");
 
-                printf("\nclient_%d aspetta\n", child + 1);
-                fflush(stdout);
                 semOp(semChilds, 0, -1, 1);
                 semOp(semChilds, 0, 0, 1);
-                printf("\nclient_%d parte\n", child + 1);
-                fflush(stdout);
 
                 // scrivo sulle ipcs
                 write_fifo1(&messages[0]);
@@ -237,11 +218,8 @@ int main(int argc, char *argv[]) {
         }
 
         struct serverMsg confirm;
-        printf("\nAttendo conferma di fine lavori da parte di server");
         if (msgrcv(msqid, &confirm, sizeof(struct serverMsg) - sizeof(long), SERVER_MTYPE, 0) == -1)
             errExit("msgrcv failed");
-        printf("\nConferma ricevuta, ripristino la sigmask");
-        fflush(stdout);
 
         //rispristino il ricevimento di INT e USR1 da parte di client_0
         if (sigprocmask(SIG_SETMASK, &SigSet, NULL) == -1)

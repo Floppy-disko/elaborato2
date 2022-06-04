@@ -60,7 +60,6 @@ int createOutputFile(char *path){
     strncpy(newPath, path, nameLen);
     newPath[nameLen]='\0';  //la strncpy non aggiunge il terminatore se non ci arriva, ce lo devo mettere io
     strcat(newPath, "_out.txt");
-    printf("\nnewPath: %s, nameLen: %d", newPath, nameLen);
     int fd = open(newPath, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR); //creo il file
     if(fd==-1)
         errExit("Creation of output file failed");
@@ -183,7 +182,6 @@ int main(int argc, char *argv[]) {
         errExit("open fifo1 in blocking mode failed");
 
     while(1) {
-        printf("\nLeggo il numero di n_file da fifo1");
         int br;
 
         do {  //provo a leggere finchè non trovo qualcosa di diverso dal carattere terminatore (raro caso in cui la write end viene chiusa)
@@ -192,12 +190,8 @@ int main(int argc, char *argv[]) {
                 errExit("Read failed");
         } while(br==0);
 
-        printf("\nHo letto: %d, invio conferma a client_0\n", n_file);
-        fflush(stdout);
         struct bareMessage confirmation = {0, "", "Conferma"};
         write_in_shdmem(shdmemBuffer, &confirmation);
-
-        printf("\nMi metto in ascolto delle parti di file");
 
         struct bareMessage messages[4][n_file];
         int indexes[4]={0};  //inizializzati a 0 arriveranno fino al valore di n_file
@@ -208,15 +202,6 @@ int main(int argc, char *argv[]) {
             try_msgq(messages[2], &indexes[2]);
             try_shdmem(messages[3], &indexes[3]);
         }
-
-        for(int i=0; i<n_file; i++) {
-            printf("\nfile %s:\n", messages[0][i].path);
-            for (int j = 0; j < 4; j++) {
-                printf("%s,", messages[j][i].part);
-            }
-        }
-
-        printf("\nCreo i file di output");
 
         char *channelNames[4] = {"FIFO1", "FIFO2", "MsgQueue", "ShdMem"};  //mi salvo il nome di tutti i canali da metter nei file di output
         for(int i=0; i<n_file; i++){
@@ -241,7 +226,6 @@ int main(int argc, char *argv[]) {
         }
 
         struct serverMsg confirm = {SERVER_MTYPE};
-        printf("\nInvio conferma a client di aver fatto tutto");
         if (msgsnd(msqid, &confirm, sizeof(struct serverMsg) - sizeof(long), 0))
             errExit("msgsnd failed\n");
 
